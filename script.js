@@ -31,7 +31,7 @@ async function fbUpd(col, id, data) { await updateDoc(doc(db, col, id), {...data
 async function fbSet(col, id, data) { await setDoc(doc(db, col, id), {...data, _ts: serverTimestamp()}, {merge:true}); }
 async function fbDel(col, id) { await deleteDoc(doc(db, col, id)); }
 
-var DB = { alumnos:[], pagos:[], cuotas:[], asistencias:[], cursos:[], horario_grupos:[], egresos:[], cat_egreso:[], cat_pag_for:[], cat_pag_est:[], cat_pag_form:[], cat_pag_cur:[], colaboradores:[], calendario_plan:[], calendario_plan_fs:[], caja_movimientos:[], prospectos:[], embudo_etapas:[], leads:[], plantillas:[], whatsapp_mensajes:[] };
+var DB = { alumnos:[], pagos:[], cuotas:[], asistencias:[], cursos:[], horario_grupos:[], egresos:[], cat_egreso:[], cat_pag_for:[], cat_pag_est:[], cat_pag_form:[], cat_pag_cur:[], colaboradores:[], calendario_plan:[], calendario_plan_fs:[], caja_movimientos:[], prospectos:[], embudo_etapas:[], leads:[], plantillas:[], whatsapp_mensajes:[], inbox_archivados:[] };
 
 function listenCol(col, key, cb) {
   const q = query(collection(db, col), orderBy("_ts", "desc"));
@@ -180,7 +180,13 @@ function initApp() {
   listenCol('plantillas',    'plantillas',    function(){ poblarSelectPlantillasInbox(); if(document.getElementById('page-plantillas').classList.contains('active')) renderPlantillas(); });
   listenCol('whatsapp_mensajes','whatsapp_mensajes', function(){
     renderInboxBadge();
-    DB.whatsapp_mensajes.filter(function(m){ return m.direccion==='entrante'; }).forEach(autoCrearProspectoSiNuevo);
+    DB.whatsapp_mensajes.filter(function(m){ return m.direccion==='entrante'; }).forEach(function(m){
+      autoCrearProspectoSiNuevo(m);
+      if(m.telefono && estaArchivada(m.telefono)) window.reabrirConversacion(m.telefono);
+    });
+    if(document.getElementById('page-inbox').classList.contains('active')) renderInbox();
+  });
+  listenCol('inbox_archivados','inbox_archivados', function(){
     if(document.getElementById('page-inbox').classList.contains('active')) renderInbox();
   });
 }
@@ -1984,16 +1990,17 @@ function ensureInboxSearchBox(){
       +'<button id="inbox-filtro-todos" class="inbox-filtro-btn" style="flex:1;padding:5px;border-radius:7px;border:1px solid #333;background:#222;color:#eee;font-size:11px;cursor:pointer">Todos</button>'
       +'<button id="inbox-filtro-fav" class="inbox-filtro-btn" style="flex:1;padding:5px;border-radius:7px;border:1px solid #333;background:transparent;color:#aaa;font-size:11px;cursor:pointer">&#9733; Favoritos</button>'
       +'<button id="inbox-filtro-fij" class="inbox-filtro-btn" style="flex:1;padding:5px;border-radius:7px;border:1px solid #333;background:transparent;color:#aaa;font-size:11px;cursor:pointer">&#128204; Fijados</button>'
+      +'<button id="inbox-filtro-arch" class="inbox-filtro-btn" style="flex:1;padding:5px;border-radius:7px;border:1px solid #333;background:transparent;color:#aaa;font-size:11px;cursor:pointer">&#128230; Cerrados</button>'
     +'</div>';
   listEl.parentNode.insertBefore(box, listEl);
   document.getElementById('inbox-search-input').addEventListener('input', function(e){
     _inboxSearchQ=e.target.value.toLowerCase().trim();
     renderInbox();
   });
-  ['inbox-filtro-todos','inbox-filtro-fav','inbox-filtro-fij'].forEach(function(id){
+  ['inbox-filtro-todos','inbox-filtro-fav','inbox-filtro-fij','inbox-filtro-arch'].forEach(function(id){
     document.getElementById(id).addEventListener('click', function(){
       window._inboxFiltroActivo = id;
-      ['inbox-filtro-todos','inbox-filtro-fav','inbox-filtro-fij'].forEach(function(bid){
+      ['inbox-filtro-todos','inbox-filtro-fav','inbox-filtro-fij','inbox-filtro-arch'].forEach(function(bid){
         var b=document.getElementById(bid);
         b.style.background = bid===id ? '#e8c547' : 'transparent';
         b.style.color = bid===id ? '#1a1a2e' : '#aaa';
@@ -2013,6 +2020,19 @@ window.toggleFijarChat=function(tel,ev){
   if(ev) ev.stopPropagation();
   _inboxFijados[tel]=!_inboxFijados[tel];
   renderInbox();
+};
+
+function estaArchivada(tel){
+  var doc=DB.inbox_archivados.find(function(a){ return a.id===tel; });
+  return !!(doc && doc.archivada);
+}
+window.cerrarConversacion=async function(tel){
+  if(!tel) return;
+  await fbSet('inbox_archivados', tel, { archivada:true, fecha:new Date().toISOString() });
+};
+window.reabrirConversacion=async function(tel){
+  if(!tel) return;
+  await fbSet('inbox_archivados', tel, { archivada:false, fecha:new Date().toISOString() });
 };
 
 var EMOJIS_INBOX=['😀','😂','😍','👍','🙏','🎉','🔥','❤️','😊','🙌','✅','📅','🎵','🎧','💰','📍','⏰','😅','🤔','👏','🎧','🕺','💬','📞'];
@@ -2110,7 +2130,9 @@ window.renderInbox = function renderInbox(){
     });
   }
   if(window._inboxFiltroActivo==='inbox-filtro-fav') convs=convs.filter(function(c){return _inboxFavoritos[c.telefono];});
-  if(window._inboxFiltroActivo==='inbox-filtro-fij') convs=convs.filter(function(c){return _inboxFijados[c.telefono];});
+  else if(window._inboxFiltroActivo==='inbox-filtro-fij') convs=convs.filter(function(c){return _inboxFijados[c.telefono];});
+  else if(window._inboxFiltroActivo==='inbox-filtro-arch') convs=convs.filter(function(c){return estaArchivada(c.telefono);});
+  else convs=convs.filter(function(c){return !estaArchivada(c.telefono);});
 
   if(!convs.length){
     listEl.innerHTML='<div style="color:#aaa;font-size:13px;padding:20px;text-align:center">'+(_inboxSearchQ?'Sin resultados para tu busqueda.':'Aun no hay conversaciones.<br>Apareceran aqui cuando el agente reciba mensajes.')+'</div>';
@@ -2160,7 +2182,15 @@ function renderChat(tel){
   var msgs=DB.whatsapp_mensajes.filter(function(m){return m.telefono===tel}).sort(function(a,b){return getTsMs(a)-getTsMs(b)});
   var conv=inboxConversaciones().find(function(c){return c.telefono===tel});
   var hEl=document.getElementById('inbox-chat-head');
-  if(hEl) hEl.innerHTML='<b>'+(conv&&conv.nombre?conv.nombre:tel)+'</b><span style="color:#888;font-size:12px;margin-left:8px">'+tel+'</span>';
+  if(hEl){
+    var cerrada=estaArchivada(tel);
+    hEl.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;width:100%">'
+      +'<div><b>'+(conv&&conv.nombre?conv.nombre:tel)+'</b><span style="color:#888;font-size:12px;margin-left:8px">'+tel+'</span>'+(cerrada?'<span style="margin-left:8px;font-size:11px;color:#e8c547">&#128230; Cerrada</span>':'')+'</div>'
+      +(cerrada
+        ? '<button onclick="window.reabrirConversacion(\''+tel+'\')" style="padding:6px 12px;border-radius:8px;border:1px solid #333;background:#222;color:#e8c547;font-size:12px;cursor:pointer">Reabrir conversacion</button>'
+        : '<button onclick="window.cerrarConversacion(\''+tel+'\')" style="padding:6px 12px;border-radius:8px;border:1px solid #333;background:#222;color:#eee;font-size:12px;cursor:pointer">&#10003; Cerrar conversacion</button>')
+      +'</div>';
+  }
   wrap.innerHTML=msgs.map(function(m){
     var mine=m.direccion==='saliente';
     var estBadge = mine && m.estado==='pendiente' ? ' <span style="opacity:.6;font-size:10px">&#8226; enviando</span>' : (mine && (m.estado==='error') ? ' <span style="color:#b91c1c;font-size:10px">&#8226; error al enviar</span>' : (mine && m.estado==='subiendo' ? ' <span style="opacity:.6;font-size:10px">&#8226; subiendo...</span>' : ''));
