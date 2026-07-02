@@ -1,0 +1,81 @@
+{
+  "academy": {
+    "name": "Deejay Academy",
+    "website": "https://www.djacademy.com.co",
+    "location": "Bogotá",
+    "address": "Calle 134A 19-53, Bogotá (Sede Norte, Barrio Contador)",
+    "contact_email": "contacto@djacademy.com.co",
+    "certifications": [
+      "Ableton Live Certified Training Center",
+      "FL Studio Recognized Center",
+      "Native Instruments Educational Partner"
+    ]
+  },
+
+  "schedules": {
+    "entre_semana": "Lunes a Jueves",
+    "fines_de_semana": "Sábados"
+  },
+
+  "courses": {
+    "dj_master_pro": {
+      "name": "DJ Master Pro",
+      "description": "Master en Mezclas DJ Pro. Programa profesional de mezcla para DJs.",
+      "duration": { "months": 2, "classes": 28, "hours": 56 },
+      "currency": "COP",
+      "price_full": 2600000,
+      "payment_options": [
+        { "type": "Pago de contado", "amount": 1750000, "savings": 850000, "note": "Mejor opción, incluye formulario" },
+        { "type": "2 pagos mensuales", "amount_each": 1200000, "savings": 200000, "extra_fee": "formulario $100.000" },
+        { "type": "4 pagos quincenales", "amount_each": 650000, "extra_fee": "formulario $100.000" }
+      ]
+    },
+
+    "music_production": {
+      "name": "Producción Musical",
+      "description": "Master en Producción Musical con Ableton Live.",
+      "duration": { "months": 2, "classes": 28, "hours": 56 },
+      "currency": "COP",
+      "price_full": 2600000,
+      "payment_options": [
+        { "type": "Pago de contado", "amount": 1950000, "savings": 650000, "note": "Mejor opción, incluye formulario" },
+        { "type": "2 pagos mensuales", "amount_each": 1200000, "savings": 200000, "extra_fee": "formulario $100.000" },
+        { "type": "4 pagos quincenales", "amount_each": 650000, "extra_fee": "formulario $100.000" }
+      ]
+    },
+
+    "dj_productor": {
+      "name": "DJ Productor",
+      "description": "Master en DJ Productor. Programa completo: incluye DJ Master Pro + Producción Musical.",
+      "duration": { "months": 4, "classes": 56, "hours": 112 },
+      "currency": "COP",
+      "price_full": 5200000,
+      "includes": ["DJ Master Pro", "Producción Musical"],
+      "payment_options": [
+        { "type": "Pago de contado", "amount": 3250000, "savings": 1950000, "note": "Mejor opción, incluye formulario" },
+        { "type": "2 pagos mensuales", "amount_each": 2300000, "savings": 600000, "extra_fee": "inscripción $100.000" },
+        { "type": "4 pagos mensuales", "amount_each": 1300000, "savings": 400000, "extra_fee": "inscripción $100.000" }
+      ]
+    }
+  },
+
+  "payments": {
+    "methods": ["Transferencia bancaria", "Tarjeta débito", "Tarjeta crédito", "Efectivo"]
+  },
+
+  "frequently_asked_questions": [
+    { "question": "¿Necesito experiencia previa?", "answer": "No. Puedes comenzar desde cero." },
+    { "question": "¿Debo tener equipos?", "answer": "No. La academia proporciona los equipos durante las clases." },
+    { "question": "¿Entregan certificado?", "answer": "Sí. Al aprobar el programa." },
+    { "question": "¿Hay clases presenciales?", "answer": "Sí, en la Sede Norte de Bogotá (Barrio Contador)." },
+    { "question": "¿Cuáles son las formas de pago?", "answer": "Contado o en cuotas, según el curso. Ver detalle en cada programa." },
+    { "question": "¿Qué certificación otorgan?", "answer": "Certificación oficial de Ableton Live, entre otras según el programa." }
+  ],
+
+  "contact": {
+    "website": "https://www.djacademy.com.co",
+    "email": "contacto@djacademy.com.co",
+    "instagram": "@djacademy",
+    "facebook": "Deejay Academy"
+  }
+}
