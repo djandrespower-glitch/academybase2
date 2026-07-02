@@ -2184,12 +2184,20 @@ function renderChat(tel){
   var hEl=document.getElementById('inbox-chat-head');
   if(hEl){
     var cerrada=estaArchivada(tel);
-    hEl.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;width:100%">'
+    hEl.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;width:100%;position:relative;z-index:5">'
       +'<div><b>'+(conv&&conv.nombre?conv.nombre:tel)+'</b><span style="color:#888;font-size:12px;margin-left:8px">'+tel+'</span>'+(cerrada?'<span style="margin-left:8px;font-size:11px;color:#e8c547">&#128230; Cerrada</span>':'')+'</div>'
       +(cerrada
-        ? '<button onclick="window.reabrirConversacion(\''+tel+'\')" style="padding:6px 12px;border-radius:8px;border:1px solid #333;background:#222;color:#e8c547;font-size:12px;cursor:pointer">Reabrir conversacion</button>'
-        : '<button onclick="window.cerrarConversacion(\''+tel+'\')" style="padding:6px 12px;border-radius:8px;border:1px solid #333;background:#222;color:#eee;font-size:12px;cursor:pointer">&#10003; Cerrar conversacion</button>')
+        ? '<button id="inbox-toggle-cerrar-btn" style="position:relative;z-index:10;pointer-events:auto;padding:6px 12px;border-radius:8px;border:1px solid #333;background:#222;color:#e8c547;font-size:12px;cursor:pointer">Reabrir conversacion</button>'
+        : '<button id="inbox-toggle-cerrar-btn" style="position:relative;z-index:10;pointer-events:auto;padding:6px 12px;border-radius:8px;border:1px solid #333;background:#222;color:#eee;font-size:12px;cursor:pointer">&#10003; Cerrar conversacion</button>')
       +'</div>';
+    var btnToggle=document.getElementById('inbox-toggle-cerrar-btn');
+    if(btnToggle){
+      btnToggle.addEventListener('click', function(e){
+        e.preventDefault(); e.stopPropagation();
+        if(cerrada) window.reabrirConversacion(tel);
+        else window.cerrarConversacion(tel);
+      });
+    }
   }
   wrap.innerHTML=msgs.map(function(m){
     var mine=m.direccion==='saliente';
