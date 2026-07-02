@@ -2206,7 +2206,9 @@ window.renderInbox = function renderInbox(){
       var previewMap={image:'📷 Foto', video:'🎥 Video', audio:'🎤 Audio', document:'📄 Documento', subiendo:'Subiendo archivo...'};
       var preview=previewMap[c.ultimo.tipo] || (c.ultimo.texto||'').slice(0,38);
       var esFav=!!_inboxFavoritos[c.telefono], esFij=!!_inboxFijados[c.telefono];
-      return '<div class="inbox-item'+(activo?' active':'')+'" onclick="abrirChat(\''+c.telefono+'\')" style="position:relative">'
+      var pendiente=c.ultimo.direccion==='entrante';
+      var bgItem=activo?'':(pendiente?'background:#fff9e6;':'');
+      return '<div class="inbox-item'+(activo?' active':'')+'" onclick="abrirChat(\''+c.telefono+'\')" style="position:relative;'+bgItem+'border-left:'+(pendiente&&!activo?'3px solid #e8c547':'3px solid transparent')+'">'
         +'<div class="avp" style="flex-shrink:0">'+(c.nombre?c.nombre[0].toUpperCase():'?')+'</div>'
         +'<div style="flex:1;min-width:0">'
           +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">'
