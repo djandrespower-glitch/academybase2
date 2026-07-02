@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Deejay Academy · Notas</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+
+  <div class="sidebar">
+    <div class="logo">
+      <img src="https://djandrespower-glitch.github.io/academybase/logo.png" alt="Deejay Academy" style="width:100%;max-width:180px;display:block">
+      <p>Sistema de Notas</p>
+    </div>
+    <nav class="nav">
+      <div class="ns">General</div>
+      <div class="ni active" data-page="dashboard" onclick="showPage('dashboard',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </div>
+
+      <div class="ns" id="ns-academico">Académico</div>
+      <div class="ni" data-page="calificar" data-roles="admin,profesor" onclick="showPage('calificar',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        Calificar
+      </div>
+      <div class="ni" data-page="misnotas" data-roles="alumno" onclick="showPage('misnotas',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        Mis Notas
+      </div>
+      <div class="ni" data-page="materias" data-roles="admin,profesor" onclick="showPage('materias',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        Materias
+      </div>
+      <div class="ni" data-page="calendario" data-roles="admin,profesor" onclick="showPage('calendario',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Calendario
+      </div>
+
+      <div class="ns" id="ns-admin" data-roles="admin">Administración</div>
+      <div class="ni" data-page="accesos" data-roles="admin" onclick="showPage('accesos',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
+        Accesos
+      </div>
+    </nav>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <h2 id="page-title">Dashboard</h2>
+      <div id="topbar-acts" style="display:flex;align-items:center;gap:8px"></div>
+    </div>
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div id="page-dashboard" class="page active">
+        <div class="sg" id="dash-cards"></div>
+        <div class="tw">
+          <div id="dash-chart-title" style="padding:12px 14px;font-weight:600;font-size:13px;border-bottom:1px solid #f0f0f0">Promedio por materia</div>
+          <div id="dash-chart" style="padding:14px"></div>
+        </div>
+      </div>
+
+      <!-- CALIFICAR (profesor / admin) -->
+      <div id="page-calificar" class="page">
+        <div class="tab-bar">
+          <div class="tab active" onclick="swCalTab('ingresar',this)">Ingresar notas</div>
+          <div class="tab" onclick="swCalTab('boletin',this)">Boletín por alumno</div>
+        </div>
+
+        <div id="cal-tab-ingresar">
+          <div class="tw">
+            <div class="ttb">
+              <select class="fs" id="cal-materia" onchange="renderCalificar()" style="min-width:240px">
+                <option value="">Selecciona una materia...</option>
+              </select>
+              <input class="si" id="cal-q" placeholder="Buscar alumno..." oninput="renderCalificar()">
+            </div>
+            <table>
+              <thead><tr>
+                <th></th><th>Alumno</th>
+                <th class="grade-cell">Nota 1</th><th class="grade-cell">Nota 2</th><th class="grade-cell">Nota 3</th><th class="grade-cell">Nota 4</th>
+                <th class="grade-cell">Definitiva</th><th class="grade-cell">Estado</th><th></th><th></th>
+              </tr></thead>
+              <tbody id="t-cal"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="cal-tab-boletin" style="display:none">
+          <div class="tw">
+            <div class="ttb">
+              <select class="fs" id="bol-alumno" onchange="renderBoletin()" style="min-width:240px">
+                <option value="">Selecciona un alumno...</option>
+              </select>
+              <button class="btn bo bsm" style="margin-left:auto" onclick="imprimirBoletin()">🖨️ Imprimir boletín</button>
+            </div>
+            <div id="bol-body" style="padding:16px"><div class="empty-state">Selecciona un alumno para ver su boletín.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MIS NOTAS (alumno) -->
+      <div id="page-misnotas" class="page">
+        <div class="sg" id="mn-cards"></div>
+        <div class="tw" style="margin-bottom:14px">
+          <div style="padding:12px 14px;font-weight:600;font-size:13px;border-bottom:1px solid #f0f0f0">Tu rendimiento por materia</div>
+          <div id="mn-chart" style="padding:14px"></div>
+        </div>
+        <div class="tw">
+          <div class="ttb"><b style="font-size:13px">Detalle de calificaciones</b><button class="btn bo bsm" style="margin-left:auto" onclick="imprimirBoletinPropio()">🖨️ Imprimir boletín</button></div>
+          <table>
+            <thead><tr>
+              <th>Materia</th><th class="grade-cell">Nota 1</th><th class="grade-cell">Nota 2</th><th class="grade-cell">Nota 3</th><th class="grade-cell">Nota 4</th>
+              <th class="grade-cell">Definitiva</th><th class="grade-cell">Estado</th>
+            </tr></thead>
+            <tbody id="t-mn"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- MATERIAS -->
+      <div id="page-materias" class="page">
+        <div class="tw">
+          <div class="ttb">
+            <input class="si" id="q-mat" placeholder="Buscar materia..." oninput="renderMaterias()">
+            <select class="fs" id="f-mat-cur" onchange="renderMaterias()" style="width:180px"><option value="">Todos los cursos</option></select>
+          </div>
+          <table>
+            <thead><tr><th>Materia</th><th>Curso</th><th>Profesor</th><th>Alumnos</th><th>Estado</th><th></th></tr></thead>
+            <tbody id="t-mat"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CALENDARIO (admin / profesor) -->
+      <div id="page-calendario" class="page" style="background:#000000;min-height:100%;margin:-18px;padding:18px;color:#fff">
+        <div class="tab-bar" style="background:#1a1a1a">
+          <div class="tab active" style="color:#ccc" onclick="swCalendarioTab('plan',this)">Planeación de cursos</div>
+          <div class="tab" style="color:#ccc" onclick="swCalendarioTab('eventos',this)">Eventos</div>
+        </div>
+
+        <div id="calt-plan">
+          <div style="font-size:12px;color:#888;margin-bottom:10px">🔒 Solo lectura — estas fechas se sincronizan en vivo desde la base de alumnos. Para modificarlas, hazlo allí.</div>
+          <div class="tw" style="padding:16px;background:#111;border:1px solid #222;margin-bottom:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+              <div style="display:flex;align-items:center;gap:14px">
+                <h3 style="font-size:14px;font-weight:700;color:#dc2626;margin:0">● ENTRE SEMANA</h3>
+                <label style="font-size:12px;color:#aaa;font-weight:600">CURSO</label>
+                <select id="cn-curso" class="fs" onchange="renderCalNotas()" style="min-width:220px;background:#1a1a1a;color:#fff;border:1px solid #333"></select>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <label style="font-size:12px;color:#aaa;font-weight:600">AÑO</label>
+                <input type="number" id="cn-anio" class="fs" style="width:90px;background:#1a1a1a;color:#fff;border:1px solid #333" onchange="renderCalNotas()">
+              </div>
+            </div>
+            <div style="overflow-x:auto">
+              <table style="min-width:1000px;border-collapse:collapse">
+                <thead><tr>
+                  <th style="background:#dc2626;color:#fff;padding:10px;font-size:13px">MESES</th>
+                  <th style="background:#14532d;color:#86efac;padding:8px;font-size:12px">INICIO<br>Nivel I</th>
+                  <th style="background:#14532d;color:#86efac;padding:8px;font-size:12px">FINAL<br>Nivel I</th>
+                  <th style="background:#713f12;color:#fde047;padding:8px;font-size:12px">INICIO<br>Nivel II</th>
+                  <th style="background:#713f12;color:#fde047;padding:8px;font-size:12px">FINAL<br>Nivel II</th>
+                  <th style="background:#164e63;color:#67e8f9;padding:8px;font-size:12px">INICIO<br>Nivel III</th>
+                  <th style="background:#164e63;color:#67e8f9;padding:8px;font-size:12px">FINAL<br>Nivel III</th>
+                  <th style="background:#831843;color:#f9a8d4;padding:8px;font-size:12px">INICIO<br>Nivel IV</th>
+                  <th style="background:#831843;color:#f9a8d4;padding:8px;font-size:12px">FINAL<br>Nivel IV</th>
+                </tr></thead>
+                <tbody id="cn-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="tw" style="padding:16px;background:#111;border:1px solid #222">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+              <div style="display:flex;align-items:center;gap:14px">
+                <h3 style="font-size:14px;font-weight:700;color:#1d4ed8;margin:0">● FINES DE SEMANA</h3>
+                <label style="font-size:12px;color:#aaa;font-weight:600">CURSO</label>
+                <select id="cn-curso-fs" class="fs" onchange="renderCalNotasFS()" style="min-width:220px;background:#1a1a1a;color:#fff;border:1px solid #333"></select>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <label style="font-size:12px;color:#aaa;font-weight:600">AÑO</label>
+                <input type="number" id="cn-anio-fs" class="fs" style="width:90px;background:#1a1a1a;color:#fff;border:1px solid #333" onchange="renderCalNotasFS()">
+              </div>
+            </div>
+            <div style="overflow-x:auto">
+              <table style="min-width:1000px;border-collapse:collapse">
+                <thead><tr>
+                  <th style="background:#1d4ed8;color:#fff;padding:10px;font-size:13px">MESES</th>
+                  <th style="background:#14532d;color:#86efac;padding:8px;font-size:12px">INICIO<br>Nivel I</th>
+                  <th style="background:#14532d;color:#86efac;padding:8px;font-size:12px">FINAL<br>Nivel I</th>
+                  <th style="background:#713f12;color:#fde047;padding:8px;font-size:12px">INICIO<br>Nivel II</th>
+                  <th style="background:#713f12;color:#fde047;padding:8px;font-size:12px">FINAL<br>Nivel II</th>
+                  <th style="background:#164e63;color:#67e8f9;padding:8px;font-size:12px">INICIO<br>Nivel III</th>
+                  <th style="background:#164e63;color:#67e8f9;padding:8px;font-size:12px">FINAL<br>Nivel III</th>
+                  <th style="background:#831843;color:#f9a8d4;padding:8px;font-size:12px">INICIO<br>Nivel IV</th>
+                  <th style="background:#831843;color:#f9a8d4;padding:8px;font-size:12px">FINAL<br>Nivel IV</th>
+                </tr></thead>
+                <tbody id="cn-body-fs"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div id="calt-eventos" style="display:none">
+          <div class="tw" style="padding:16px;background:#111;border:1px solid #222">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+              <button class="btn bp bsm" onclick="openMEvento()">+ Nuevo evento</button>
+              <select id="ev-tipo-f" class="fs" onchange="renderEventos()" style="background:#1a1a1a;color:#fff;border:1px solid #333;width:170px">
+                <option value="">Todos los tipos</option>
+                <option value="examen">Examen</option>
+                <option value="entrega">Entrega de notas</option>
+                <option value="evento">Evento</option>
+                <option value="otro">Otro</option>
+              </select>
+              <label style="font-size:12px;color:#aaa;display:flex;align-items:center;gap:6px;margin-left:auto">
+                <input type="checkbox" id="ev-solo-prox" checked onchange="renderEventos()"> Solo próximos
+              </label>
+            </div>
+            <div id="ev-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACCESOS (admin) -->
+      <div id="page-accesos" class="page">
+        <div class="tab-bar">
+          <div class="tab active" onclick="swAccTab('prof',this)">Profesores</div>
+          <div class="tab" onclick="swAccTab('alu',this)">Alumnos con acceso</div>
+        </div>
+        <div id="acc-tab-prof">
+          <div class="tw">
+            <div class="ttb"><button class="btn bp bsm" onclick="openMAccProf()">+ Nuevo profesor</button></div>
+            <table><thead><tr><th>Nombre</th><th>Email</th><th>Materias asignadas</th><th></th></tr></thead><tbody id="t-acc-prof"></tbody></table>
+          </div>
+        </div>
+        <div id="acc-tab-alu" style="display:none">
+          <div class="tw">
+            <div class="ttb"><button class="btn bp bsm" onclick="openMAccAlu()">+ Dar acceso a alumno</button></div>
+            <table><thead><tr><th>Alumno</th><th>Email de acceso</th><th>Curso</th><th></th></tr></thead><tbody id="t-acc-alu"></tbody></table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal Evento de Calendario -->
+<div class="ov" id="m-evento">
+  <div class="modal" style="max-width:460px">
+    <div class="mh"><h3 id="ev-tit">Nuevo evento</h3><button class="btn bo bsm" onclick="closeM('m-evento')">X</button></div>
+    <div class="mb">
+      <div class="fg" style="grid-template-columns:1fr">
+        <div class="fgp"><label>Título *</label><input id="ev-titulo" placeholder="Ej: Examen final DJ Productor"></div>
+        <div class="fg">
+          <div class="fgp"><label>Fecha *</label><input id="ev-fecha" type="date"></div>
+          <div class="fgp"><label>Tipo *</label>
+            <select id="ev-tipo">
+              <option value="examen">Examen</option>
+              <option value="entrega">Entrega de notas</option>
+              <option value="evento">Evento</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+        </div>
+        <div class="fgp"><label>Materia (opcional)</label><select id="ev-materia"><option value="">Ninguna / General</option></select></div>
+        <div class="fgp"><label>Descripción</label><textarea id="ev-desc" placeholder="Detalles adicionales..."></textarea></div>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn bd" id="ev-del" style="margin-right:auto;display:none" onclick="delEventoM()">Eliminar</button>
+      <button class="btn bo" onclick="closeM('m-evento')">Cancelar</button>
+      <button class="btn bp" onclick="saveEvento()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Acceso denegado -->
+<div class="ov" id="m-denegado">
+  <div class="modal" style="max-width:380px;text-align:center;padding:30px 24px">
+    <div style="font-size:32px;margin-bottom:10px">🔒</div>
+    <h3 style="margin-bottom:8px">Sin acceso al sistema de notas</h3>
+    <p style="font-size:13px;color:#888;margin-bottom:18px">Tu cuenta no tiene un rol asignado en esta plataforma. Contacta al administrador para que te habilite el acceso.</p>
+    <button class="btn bo" onclick="doLogout()" style="width:100%">Cerrar sesión</button>
+  </div>
+</div>
+
+<!-- Modal Materia -->
+<div class="ov" id="m-materia">
+  <div class="modal" style="max-width:440px">
+    <div class="mh"><h3 id="mm-tit">Nueva materia</h3><button class="btn bo bsm" onclick="closeM('m-materia')">X</button></div>
+    <div class="mb">
+      <div class="fg" style="grid-template-columns:1fr">
+        <div class="fgp"><label>Nombre de la materia *</label><input id="mm-nom" placeholder="Ej: Teoría Musical"></div>
+        <div class="fgp"><label>Curso *</label><select id="mm-cur"><option value="">Seleccionar...</option></select></div>
+        <div class="fgp"><label>Profesor asignado</label><select id="mm-prof"><option value="">Sin asignar</option></select></div>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn bd" id="mm-del" style="margin-right:auto;display:none" onclick="delMateriaM()">Eliminar</button>
+      <button class="btn bo" onclick="closeM('m-materia')">Cancelar</button>
+      <button class="btn bp" onclick="saveMateria()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Ver Perfil del Alumno -->
+<div class="ov" id="m-ver">
+  <div class="modal">
+    <div class="mh"><h3>Perfil del alumno</h3><button class="btn bo bsm" onclick="closeM('m-ver')">X</button></div>
+    <div class="mb" id="m-ver-body"></div>
+    <div class="mf"><button class="btn bo" onclick="closeM('m-ver')">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- Modal Nuevo Profesor -->
+<div class="ov" id="m-acc-prof">
+  <div class="modal" style="max-width:420px">
+    <div class="mh"><h3>Nuevo profesor</h3><button class="btn bo bsm" onclick="closeM('m-acc-prof')">X</button></div>
+    <div class="mb">
+      <div class="fg" style="grid-template-columns:1fr">
+        <div class="fgp"><label>Nombre completo *</label><input id="ap-nom" placeholder="Nombre y apellido"></div>
+        <div class="fgp"><label>Email de acceso *</label><input id="ap-mail" type="email" placeholder="correo@..."></div>
+        <div class="fgp"><label>Contraseña temporal *</label><input id="ap-pwd" type="text" placeholder="Mínimo 6 caracteres"></div>
+      </div>
+      <div id="ap-err" style="color:#b91c1c;font-size:12px;margin-top:8px"></div>
+    </div>
+    <div class="mf"><button class="btn bo" onclick="closeM('m-acc-prof')">Cancelar</button><button class="btn bp" id="ap-btn" onclick="crearProfesor()">Crear acceso</button></div>
+  </div>
+</div>
+
+<!-- Modal Dar acceso a Alumno -->
+<div class="ov" id="m-acc-alu">
+  <div class="modal" style="max-width:420px">
+    <div class="mh"><h3>Dar acceso a alumno</h3><button class="btn bo bsm" onclick="closeM('m-acc-alu')">X</button></div>
+    <div class="mb">
+      <div class="fg" style="grid-template-columns:1fr">
+        <div class="fgp"><label>Alumno *</label><select id="aa-al"><option value="">Seleccionar alumno...</option></select></div>
+        <div class="fgp"><label>Email de acceso *</label><input id="aa-mail" type="email" placeholder="correo@..."></div>
+        <div class="fgp"><label>Contraseña temporal *</label><input id="aa-pwd" type="text" placeholder="Mínimo 6 caracteres"></div>
+      </div>
+      <div id="aa-err" style="color:#b91c1c;font-size:12px;margin-top:8px"></div>
+    </div>
+    <div class="mf"><button class="btn bo" onclick="closeM('m-acc-alu')">Cancelar</button><button class="btn bp" id="aa-btn" onclick="crearAccesoAlumno()">Crear acceso</button></div>
+  </div>
+</div>
+
+<!-- Boletín imprimible -->
+<div id="boletin-print"></div>
+
+<script type="module" src="script.js"></script>
+</body>
+</html>
