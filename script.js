@@ -1963,7 +1963,12 @@ function inboxConversaciones(){
     if(m.nombre && !byTel[m.telefono].nombre) byTel[m.telefono].nombre=m.nombre;
     if(m.direccion==='entrante' && !m.leido) byTel[m.telefono].noLeidos++;
   });
-  return Object.keys(byTel).map(function(k){return byTel[k]}).sort(function(a,b){
+  return Object.keys(byTel).map(function(k){
+    var conv=byTel[k];
+    var prosp=getProspectoPorTelefono(conv.telefono);
+    if(prosp && prosp.nombre) conv.nombre=prosp.nombre;
+    return conv;
+  }).sort(function(a,b){
     var fa=_inboxFijados[a.telefono]?1:0, fb=_inboxFijados[b.telefono]?1:0;
     if(fa!==fb) return fb-fa;
     return getTsMs(b.ultimo)-getTsMs(a.ultimo);
@@ -2178,25 +2183,76 @@ window.abrirChatDesdeLead=function(tel){
   setTimeout(function(){ window.abrirChat(tel); }, 150);
 };
 
+function getProspectoPorTelefono(tel){
+  return DB.prospectos.find(function(p){ return p.telefono===tel; });
+}
+
 function renderChat(tel){
   var wrap=document.getElementById('inbox-chat'); if(!wrap) return;
   var msgs=DB.whatsapp_mensajes.filter(function(m){return m.telefono===tel}).sort(function(a,b){return getTsMs(a)-getTsMs(b)});
   var conv=inboxConversaciones().find(function(c){return c.telefono===tel});
+  var prosp=getProspectoPorTelefono(tel);
   var hEl=document.getElementById('inbox-chat-head');
   if(hEl){
     var cerrada=estaArchivada(tel);
-    hEl.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;width:100%;position:relative;z-index:5">'
-      +'<div><b>'+(conv&&conv.nombre?conv.nombre:tel)+'</b><span style="color:#888;font-size:12px;margin-left:8px">'+tel+'</span>'+(cerrada?'<span style="margin-left:8px;font-size:11px;color:#e8c547">&#128230; Cerrada</span>':'')+'</div>'
-      +(cerrada
-        ? '<button id="inbox-toggle-cerrar-btn" style="position:relative;z-index:10;pointer-events:auto;padding:6px 12px;border-radius:8px;border:1px solid #333;background:#222;color:#e8c547;font-size:12px;cursor:pointer">Reabrir conversacion</button>'
-        : '<button id="inbox-toggle-cerrar-btn" style="position:relative;z-index:10;pointer-events:auto;padding:6px 12px;border-radius:8px;border:1px solid #333;background:#222;color:#eee;font-size:12px;cursor:pointer">&#10003; Cerrar conversacion</button>')
-      +'</div>';
+    var nombreMostrar=(prosp&&prosp.nombre)?prosp.nombre:(conv&&conv.nombre?conv.nombre:tel);
+    var etapas=DB.embudo_etapas.slice().sort(function(a,b){return (a.orden||0)-(b.orden||0);});
+    var etapaActual=prosp?etapas.find(function(e){return e.id===prosp.etapaId;}):null;
+    var etapaColor=etapaActual?etapaActual.color:'#6b7280';
+    var etapaOptions=etapas.map(function(e){return '<option value="'+e.id+'" '+(prosp&&prosp.etapaId===e.id?'selected':'')+'>'+e.nombre+'</option>';}).join('');
+
+    hEl.innerHTML='<div style="display:flex;flex-direction:column;gap:8px;width:100%;position:relative;z-index:5">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
+        +'<div style="display:flex;align-items:center;gap:6px" id="inbox-nombre-wrap">'
+          +'<b id="inbox-nombre-display">'+nombreMostrar+'</b>'
+          +'<button id="inbox-edit-nombre-btn" title="Editar nombre" style="background:none;border:none;cursor:pointer;font-size:13px;color:#888;padding:2px">&#9998;</button>'
+          +'<span style="color:#888;font-size:12px;margin-left:4px">'+tel+'</span>'
+          +(cerrada?'<span style="margin-left:4px;font-size:11px;color:#e8c547">&#128230; Cerrada</span>':'')
+        +'</div>'
+        +'<div style="display:flex;align-items:center;gap:8px">'
+          +(prosp
+            ? '<select id="inbox-etapa-select" style="padding:6px 10px;border-radius:8px;border:1px solid '+etapaColor+';background:'+etapaColor+'22;color:#eee;font-size:12px;cursor:pointer;font-weight:600">'+etapaOptions+'</select>'
+            : '<span style="font-size:11px;color:#888">Sin prospecto vinculado</span>')
+          +(cerrada
+            ? '<button id="inbox-toggle-cerrar-btn" style="padding:6px 12px;border-radius:8px;border:1px solid #333;background:#222;color:#e8c547;font-size:12px;cursor:pointer">Reabrir conversacion</button>'
+            : '<button id="inbox-toggle-cerrar-btn" style="padding:6px 12px;border-radius:8px;border:1px solid #333;background:#222;color:#eee;font-size:12px;cursor:pointer">&#10003; Cerrar conversacion</button>')
+        +'</div>'
+      +'</div>'
+    +'</div>';
+
     var btnToggle=document.getElementById('inbox-toggle-cerrar-btn');
     if(btnToggle){
       btnToggle.addEventListener('click', function(e){
         e.preventDefault(); e.stopPropagation();
         if(cerrada) window.reabrirConversacion(tel);
         else window.cerrarConversacion(tel);
+      });
+    }
+
+    var selEtapa=document.getElementById('inbox-etapa-select');
+    if(selEtapa && prosp){
+      selEtapa.addEventListener('change', async function(){
+        await fbUpd('prospectos', prosp.id, { etapaId: selEtapa.value });
+      });
+    }
+
+    var btnEditNombre=document.getElementById('inbox-edit-nombre-btn');
+    if(btnEditNombre){
+      btnEditNombre.addEventListener('click', function(e){
+        e.preventDefault(); e.stopPropagation();
+        var wrapNombre=document.getElementById('inbox-nombre-wrap');
+        wrapNombre.innerHTML='<input id="inbox-nombre-input" value="'+nombreMostrar.replace(/"/g,'&quot;')+'" style="font-size:14px;font-weight:600;padding:4px 8px;border-radius:6px;border:1px solid #333;background:#161616;color:#eee;width:180px">'
+          +'<button id="inbox-nombre-guardar" style="padding:4px 10px;border-radius:6px;border:none;background:#e8c547;color:#1a1a2e;font-size:12px;font-weight:600;cursor:pointer;margin-left:6px">Guardar</button>'
+          +'<button id="inbox-nombre-cancelar" style="padding:4px 10px;border-radius:6px;border:1px solid #333;background:transparent;color:#aaa;font-size:12px;cursor:pointer;margin-left:4px">X</button>';
+        var inp=document.getElementById('inbox-nombre-input');
+        inp.focus(); inp.select();
+        document.getElementById('inbox-nombre-guardar').addEventListener('click', async function(){
+          var nuevo=inp.value.trim(); if(!nuevo) return;
+          if(prosp) await fbUpd('prospectos', prosp.id, { nombre: nuevo });
+          renderChat(tel);
+        });
+        document.getElementById('inbox-nombre-cancelar').addEventListener('click', function(){ renderChat(tel); });
+        inp.addEventListener('keydown', function(ev){ if(ev.key==='Enter') document.getElementById('inbox-nombre-guardar').click(); if(ev.key==='Escape') renderChat(tel); });
       });
     }
   }
