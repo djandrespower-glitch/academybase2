@@ -1549,16 +1549,22 @@ function renderEmbudo() {
 }
 
 function renderEmbudoCard(p) {
-  return '<div class="embudo-card" draggable="true" '
+  return '<div class="embudo-card" draggable="true" style="position:relative" '
     + 'ondragstart="embudoDragStart(event,\''+p.id+'\')" '
-    + 'onclick="verProspecto(\''+p.id+'\')">'
-    + '<div style="font-weight:600;font-size:13px;margin-bottom:3px">'+(p.nombre||'Sin nombre')+'</div>'
+    + (p.telefono ? 'onclick="irInboxDesdeProspecto(\''+p.telefono+'\')"' : 'onclick="verProspecto(\''+p.id+'\')"') + '>'
+    + '<span onclick="event.stopPropagation();verProspecto(\''+p.id+'\')" title="Editar datos" style="position:absolute;top:6px;right:6px;font-size:12px;color:#aaa;cursor:pointer;padding:2px 4px">&#9998;</span>'
+    + '<div style="font-weight:600;font-size:13px;margin-bottom:3px;padding-right:16px">'+(p.nombre||'Sin nombre')+'</div>'
     + (p.telefono ? '<div style="font-size:11px;color:#777;margin-bottom:1px">&#128241; '+p.telefono+'</div>' : '')
     + (p.curso    ? '<div style="font-size:11px;color:#777;margin-bottom:1px">&#127891; '+p.curso+'</div>' : '')
     + (p.valor    ? '<div style="font-size:12px;color:#16a34a;font-weight:600;margin-top:3px">$'+parseFloat(p.valor).toLocaleString('es-CO')+'</div>' : '')
     + (p.fecha    ? '<div style="font-size:10px;color:#ccc;margin-top:3px">'+p.fecha+'</div>' : '')
     + '</div>';
 }
+
+window.irInboxDesdeProspecto=function(tel){
+  showPage('inbox');
+  setTimeout(function(){ window.abrirChat(tel); }, 150);
+};
 
 // ─── DRAG & DROP ──────────────────────────────────────────────
 window.embudoDragStart = function(e, id) {
@@ -1864,6 +1870,7 @@ window.convertirLeadProspecto=async function(id){
 // MÓDULO: PLANTILLAS DE MENSAJES (respuestas rapidas)
 // ══════════════════════════════════════════════════════════════
 var _tplEditId=null;
+var _tplImagenUrl=null;
 
 window.renderPlantillas = function renderPlantillas(){
   var el=document.getElementById('tpl-lista'); if(!el) return;
@@ -1878,6 +1885,7 @@ window.renderPlantillas = function renderPlantillas(){
     return '<div style="margin-bottom:18px"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">'+cat+'</div>'
       +grupos[cat].map(function(t){
         return '<div class="cc" style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">'
+          +(t.imagenUrl?'<img src="'+t.imagenUrl+'" style="width:48px;height:48px;object-fit:cover;border-radius:8px;flex-shrink:0">':'')
           +'<div style="flex:1;min-width:0"><b style="font-size:13px">'+t.titulo+'</b>'
           +'<div style="font-size:12px;color:#666;margin-top:4px;white-space:pre-wrap">'+t.texto+'</div></div>'
           +'<div style="display:flex;gap:6px;flex-shrink:0">'
@@ -1891,28 +1899,72 @@ window.renderPlantillas = function renderPlantillas(){
   }).join('');
 };
 
+function ensurePlantillaImagenUI(){
+  if(document.getElementById('mt-imagen-wrap')) return;
+  var texto=document.getElementById('mt-texto'); if(!texto) return;
+  var wrap=document.createElement('div');
+  wrap.id='mt-imagen-wrap';
+  wrap.style.cssText='margin-top:12px';
+  wrap.innerHTML='<label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px">Imagen (opcional, maximo 10MB)</label>'
+    +'<div id="mt-imagen-preview-wrap" style="display:none;margin-bottom:8px">'
+      +'<img id="mt-imagen-preview" style="max-width:120px;max-height:120px;border-radius:8px;display:block;margin-bottom:6px">'
+      +'<button type="button" id="mt-imagen-quitar" class="btn bd bsm">Quitar imagen</button>'
+    +'</div>'
+    +'<input type="file" id="mt-imagen-input" accept="image/*" style="font-size:12px">';
+  texto.parentNode.insertBefore(wrap, texto.nextSibling);
+  document.getElementById('mt-imagen-input').addEventListener('change', async function(e){
+    var f=e.target.files[0]; if(!f) return;
+    if(f.size > MAX_ARCHIVO_BYTES){ alert('La imagen pesa '+(f.size/1024/1024).toFixed(1)+' MB. Maximo 10 MB.'); return; }
+    try{
+      var fd=new FormData(); fd.append('archivo', f); fd.append('telefono','plantillas');
+      var resp=await fetch('https://api.djacademy.com.co/upload-media', { method:'POST', body:fd });
+      var data=await resp.json();
+      if(!data.ok) throw new Error(data.error||'Error subiendo imagen');
+      _tplImagenUrl=data.url;
+      document.getElementById('mt-imagen-preview').src=data.url;
+      document.getElementById('mt-imagen-preview-wrap').style.display='block';
+    }catch(err){ alert('No se pudo subir la imagen: '+err.message); }
+  });
+  document.getElementById('mt-imagen-quitar').addEventListener('click', function(){
+    _tplImagenUrl=null;
+    document.getElementById('mt-imagen-preview-wrap').style.display='none';
+    document.getElementById('mt-imagen-input').value='';
+  });
+}
+
 window.nuevaPlantilla=function(){
-  _tplEditId=null;
+  _tplEditId=null; _tplImagenUrl=null;
   document.getElementById('mt-tit').textContent='Nueva plantilla';
   ['mt-titulo','mt-cat','mt-texto'].forEach(function(id){document.getElementById(id).value=''});
   document.getElementById('mt-del').style.display='none';
   openM('m-plantilla');
+  ensurePlantillaImagenUI();
+  document.getElementById('mt-imagen-preview-wrap').style.display='none';
+  document.getElementById('mt-imagen-input').value='';
 };
 window.editPlantilla=function(id){
   var t=DB.plantillas.find(function(x){return x.id===id}); if(!t) return;
-  _tplEditId=id;
+  _tplEditId=id; _tplImagenUrl=t.imagenUrl||null;
   document.getElementById('mt-tit').textContent='Editar plantilla';
   document.getElementById('mt-titulo').value=t.titulo||'';
   document.getElementById('mt-cat').value=t.categoria||'';
   document.getElementById('mt-texto').value=t.texto||'';
   document.getElementById('mt-del').style.display='';
   openM('m-plantilla');
+  ensurePlantillaImagenUI();
+  document.getElementById('mt-imagen-input').value='';
+  if(t.imagenUrl){
+    document.getElementById('mt-imagen-preview').src=t.imagenUrl;
+    document.getElementById('mt-imagen-preview-wrap').style.display='block';
+  } else {
+    document.getElementById('mt-imagen-preview-wrap').style.display='none';
+  }
 };
 window.savePlantilla=async function(){
   var tit=document.getElementById('mt-titulo').value.trim();
   var txt=document.getElementById('mt-texto').value.trim();
   if(!tit||!txt){ alert('Titulo y texto son requeridos'); return; }
-  var data={ titulo:tit, categoria:document.getElementById('mt-cat').value.trim()||'General', texto:txt };
+  var data={ titulo:tit, categoria:document.getElementById('mt-cat').value.trim()||'General', texto:txt, imagenUrl:_tplImagenUrl||null };
   if(_tplEditId){ await fbUpd('plantillas',_tplEditId,data); } else { await fbAdd('plantillas',data); }
   closeM('m-plantilla');
 };
@@ -1936,10 +1988,16 @@ function poblarSelectPlantillasInbox(){
   var dl=document.getElementById('dl-cat-tpl');
   if(dl){ var cats=Array.from(new Set(DB.plantillas.map(function(t){return t.categoria}).filter(Boolean))); dl.innerHTML=cats.map(function(c){return '<option value="'+c+'">'}).join(''); }
 }
-window.usarPlantillaEnChat=function(){
+window.usarPlantillaEnChat=async function(){
   var sel=document.getElementById('inbox-tpl-sel');
   var id=sel.value; if(!id) return;
   var t=DB.plantillas.find(function(x){return x.id===id}); if(!t) return;
+  if(t.imagenUrl){
+    if(!_inboxTelActivo){ alert('Selecciona una conversacion primero.'); sel.value=''; return; }
+    await fbAdd('whatsapp_mensajes', { telefono:_inboxTelActivo, direccion:'saliente', texto:t.texto||'', tipo:'image', archivoUrl:t.imagenUrl, estado:'pendiente', leido:true });
+    sel.value='';
+    return;
+  }
   document.getElementById('inbox-input').value=t.texto;
   sel.value='';
   document.getElementById('inbox-input').focus();
@@ -2211,7 +2269,7 @@ function renderChat(tel){
         +'</div>'
         +'<div style="display:flex;align-items:center;gap:8px">'
           +(prosp
-            ? '<select id="inbox-etapa-select" style="padding:6px 10px;border-radius:8px;border:1px solid '+etapaColor+';background:'+etapaColor+'22;color:#eee;font-size:12px;cursor:pointer;font-weight:600">'+etapaOptions+'</select>'
+            ? '<select id="inbox-etapa-select" style="padding:6px 10px;border-radius:8px;border:1.5px solid '+etapaColor+';background:'+etapaColor+'22;color:#1a1a2e;font-size:12px;font-weight:700;cursor:pointer">'+etapaOptions+'</select>'
             : '<span style="font-size:11px;color:#888">Sin prospecto vinculado</span>')
           +(cerrada
             ? '<button id="inbox-toggle-cerrar-btn" style="padding:6px 12px;border-radius:8px;border:1px solid #333;background:#222;color:#e8c547;font-size:12px;cursor:pointer">Reabrir conversacion</button>'
