@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mi Calendario — Deejay Academy</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+
+  :root{
+    --negro:#0a0a0a;
+    --rojo:#c0392b;
+    --rojo-vivo:#e74c3c;
+    --crema:#f4f4f0;
+    --gris-linea:#e6e4dd;
+    --gris-texto:#777;
+    --verde:#15803d;
+    --verde-bg:#dcfce7;
+  }
+
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    background:var(--crema);
+    color:var(--negro);
+    min-height:100vh;
+  }
+
+  /* ===== Topbar ===== */
+  .topbar{
+    background:var(--negro);
+    color:#fff;
+    padding:16px 24px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  .topbar .marca{display:flex;align-items:center;gap:10px}
+  .topbar .marca .punto{width:9px;height:9px;border-radius:50%;background:var(--rojo-vivo)}
+  .topbar h1{font-size:16px;font-weight:800;letter-spacing:.3px}
+  .topbar .sub{font-size:11px;color:#999}
+
+  .alumno-chip{
+    display:flex;align-items:center;gap:10px;
+    background:#1c1c1c;border-radius:30px;padding:6px 14px 6px 6px;
+  }
+  .alumno-chip .av{
+    width:28px;height:28px;border-radius:50%;
+    background:var(--rojo-vivo);display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:700;color:#fff;
+  }
+  .alumno-chip .nom{font-size:12.5px;font-weight:600}
+  .alumno-chip .curso{font-size:10px;color:#999}
+  .salir{background:none;border:none;color:#888;font-size:11px;cursor:pointer;margin-left:6px}
+  .salir:hover{color:#fff}
+
+  /* ===== Contenedor principal ===== */
+  .wrap{max-width:1280px;margin:0 auto;padding:24px}
+
+  .resumen-bar{
+    display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;
+  }
+  .resumen-card{
+    background:#fff;border:1px solid var(--gris-linea);border-radius:12px;
+    padding:14px 18px;flex:1;min-width:160px;
+  }
+  .resumen-card .lbl{font-size:11px;color:var(--gris-texto);margin-bottom:2px}
+  .resumen-card .val{font-size:22px;font-weight:800;color:var(--negro)}
+  .resumen-card.acento .val{color:var(--rojo)}
+
+  /* ===== Navegación de semana ===== */
+  .nav-semana{
+    display:flex;align-items:center;justify-content:space-between;
+    background:#fff;border:1px solid var(--gris-linea);border-radius:12px;
+    padding:12px 16px;margin-bottom:16px;
+  }
+  .nav-semana .rango{font-size:14px;font-weight:700}
+  .nav-semana .botones{display:flex;gap:8px}
+  .nav-btn{
+    background:var(--crema);border:1px solid var(--gris-linea);border-radius:8px;
+    width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;font-size:14px;font-weight:700;color:var(--negro);
+  }
+  .nav-btn:hover{background:#ebe9e2}
+  .nav-hoy{
+    background:var(--negro);color:#fff;border:none;border-radius:8px;
+    padding:0 14px;font-size:12px;font-weight:600;cursor:pointer;
+  }
+
+  /* ===== Grid semanal ===== */
+  .grid-semana{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:10px;
+  }
+  .dia-col{
+    background:#fff;border:1px solid var(--gris-linea);border-radius:12px;
+    overflow:hidden;min-height:120px;display:flex;flex-direction:column;
+  }
+  .dia-col.hoy{border-color:var(--rojo);box-shadow:0 0 0 1px var(--rojo)}
+  .dia-head{
+    padding:10px 10px 8px;border-bottom:1px solid var(--gris-linea);
+    text-align:center;background:#fafaf8;
+  }
+  .dia-head .dn{font-size:10px;color:var(--gris-texto);text-transform:uppercase;letter-spacing:.5px}
+  .dia-head .dd{font-size:18px;font-weight:800;margin-top:2px}
+  .dia-col.hoy .dia-head{background:#fdf0ee}
+  .dia-col.hoy .dd{color:var(--rojo)}
+
+  .dia-slots{flex:1;padding:8px;display:flex;flex-direction:column;gap:6px}
+  .slot{
+    border-radius:8px;padding:8px 9px;font-size:11.5px;cursor:pointer;
+    border:1px solid transparent;transition:.12s;
+  }
+  .slot .hora{font-weight:700;font-size:12px}
+  .slot .inst{color:inherit;opacity:.85;font-size:10.5px;margin-top:1px}
+  .slot .curso-n{font-size:10px;opacity:.7}
+
+  .slot.disponible{background:var(--verde-bg);color:var(--verde);border-color:#bbf0cc}
+  .slot.disponible:hover{background:#bbf0cc;transform:translateY(-1px)}
+
+  .slot.mia{background:#1a1a1a;color:#fff}
+  .slot.mia .inst{color:#bbb}
+
+  .slot.lleno{background:#f3f1ec;color:#aaa;cursor:not-allowed}
+  .slot.no_disponible{display:none}
+
+  .vacio-dia{
+    flex:1;display:flex;align-items:center;justify-content:center;
+    color:#ccc;font-size:11px;padding:10px;text-align:center;
+  }
+
+  .cargando, .vacio-todo{
+    text-align:center;padding:60px 20px;color:var(--gris-texto);font-size:13px;
+  }
+
+  /* ===== Modal de confirmación ===== */
+  .ov{
+    position:fixed;inset:0;background:rgba(0,0,0,.55);
+    display:flex;align-items:center;justify-content:center;z-index:1000;
+    padding:16px;visibility:hidden;opacity:0;transition:.15s;
+  }
+  .ov.show{visibility:visible;opacity:1}
+  .modal{
+    background:#fff;border-radius:16px;width:100%;max-width:380px;padding:24px;
+  }
+  .modal h3{font-size:17px;font-weight:800;margin-bottom:14px}
+  .detalle-fila{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f1ec;font-size:13px}
+  .detalle-fila .k{color:var(--gris-texto)}
+  .detalle-fila .v{font-weight:600}
+  .modal-err{color:var(--rojo);font-size:12.5px;margin-top:10px;min-height:16px}
+  .modal-botones{display:flex;gap:10px;margin-top:18px}
+  .btn{
+    flex:1;padding:11px;border-radius:9px;border:none;font-size:13.5px;font-weight:700;
+    cursor:pointer;font-family:inherit;
+  }
+  .btn-cancelar{background:#f0eee8;color:#555}
+  .btn-confirmar{background:var(--rojo);color:#fff}
+  .btn-confirmar:disabled{background:#ccc;cursor:not-allowed}
+  .btn-confirmar.cancelar-reserva{background:#1a1a1a}
+
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--negro);color:#fff;padding:12px 20px;border-radius:10px;
+    font-size:13px;font-weight:600;opacity:0;transition:.25s;z-index:2000;
+    box-shadow:0 6px 24px rgba(0,0,0,.3);
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.err{background:var(--rojo)}
+
+  @media (max-width:900px){
+    .grid-semana{grid-template-columns:1fr;}
+    .resumen-bar{flex-direction:column}
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="marca">
+      <span class="punto"></span>
+      <div>
+        <h1>DEEJAY ACADEMY</h1>
+        <div class="sub">Portal de alumnos</div>
+      </div>
+    </div>
+    <div class="alumno-chip" id="alumno-chip">
+      <div class="av" id="av-ini">--</div>
+      <div>
+        <div class="nom" id="alumno-nombre">Cargando...</div>
+        <div class="curso" id="alumno-curso"></div>
+      </div>
+      <button class="salir" onclick="cerrarSesion()">Salir</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <div class="resumen-bar">
+      <div class="resumen-card acento">
+        <div class="lbl">Tus próximas clases</div>
+        <div class="val" id="resumen-proximas">0</div>
+      </div>
+      <div class="resumen-card">
+        <div class="lbl">Clases restantes en tu plan</div>
+        <div class="val" id="resumen-restantes">—</div>
+      </div>
+    </div>
+
+    <div class="nav-semana">
+      <div class="botones">
+        <div class="nav-btn" onclick="cambiarSemana(-1)">←</div>
+        <button class="nav-hoy" onclick="irHoy()">Hoy</button>
+        <div class="nav-btn" onclick="cambiarSemana(1)">→</div>
+      </div>
+      <div class="rango" id="rango-semana">—</div>
+      <div style="width:1px"></div>
+    </div>
+
+    <div id="grid-contenedor">
+      <div class="cargando">Cargando horarios...</div>
+    </div>
+
+  </div>
+
+  <!-- Modal de confirmación de reserva -->
+  <div class="ov" id="modal-ov">
+    <div class="modal">
+      <h3 id="modal-titulo">Confirmar reserva</h3>
+      <div class="detalle-fila"><span class="k">Instructor</span><span class="v" id="md-instructor">—</span></div>
+      <div class="detalle-fila"><span class="k">Fecha</span><span class="v" id="md-fecha">—</span></div>
+      <div class="detalle-fila"><span class="k">Horario</span><span class="v" id="md-horario">—</span></div>
+      <div class="detalle-fila"><span class="k">Curso</span><span class="v" id="md-curso">—</span></div>
+      <div class="modal-err" id="modal-err"></div>
+      <div class="modal-botones">
+        <button class="btn btn-cancelar" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn btn-confirmar" id="btn-confirmar-modal">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import {
+    getFirestore, collection, doc, getDoc, query, where,
+    onSnapshot, runTransaction, serverTimestamp, orderBy
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import {
+    getAuth, onAuthStateChanged, signOut
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey:            "AIzaSyCSrMuYRkMAZrp5v0AafK45xqFwdkBquqY",
+    authDomain:        "deejya-academy-base-alumnos.firebaseapp.com",
+    projectId:         "deejya-academy-base-alumnos",
+    storageBucket:     "deejya-academy-base-alumnos.firebasestorage.app",
+    messagingSenderId: "1092925669565",
+    appId:             "1:1092925669565:web:8f30089783c52947d777d4"
+  };
+
+  const app  = initializeApp(firebaseConfig);
+  const db   = getFirestore(app);
+  const auth = getAuth(app);
+
+  const DIAS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+
+  let alumnoActual = null;     // { alumnoId, nombre, moduloId, ... }
+  let slotsSemana = [];        // slots cargados de la semana visible
+  let inicioSemana = lunesDeEstaSemana(new Date());
+  let unsubSlots = null;
+  let slotSeleccionado = null;
+  let modoModal = 'reservar';  // 'reservar' | 'cancelar'
+
+  // ───────── Utilidades de fecha ─────────
+  function lunesDeEstaSemana(d){
+    const r = new Date(d);
+    const diff = (r.getDay() === 0 ? -6 : 1) - r.getDay();
+    r.setDate(r.getDate() + diff);
+    r.setHours(0,0,0,0);
+    return r;
+  }
+  function fechaISO(d){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function diasDeLaSemana(lunes){
+    const out=[];
+    for(let i=0;i<7;i++){
+      const d = new Date(lunes);
+      d.setDate(d.getDate()+i);
+      out.push(d);
+    }
+    return out;
+  }
+  function formatoRango(lunes){
+    const dom = new Date(lunes); dom.setDate(dom.getDate()+6);
+    const opts = {day:'numeric', month:'short'};
+    return lunes.toLocaleDateString('es-CO', opts) + ' — ' + dom.toLocaleDateString('es-CO', opts);
+  }
+  function esMismaFecha(a,b){ return fechaISO(a) === fechaISO(b); }
+
+  // ───────── Toast ─────────
+  function toast(msg, esError){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (esError ? ' err' : '');
+    setTimeout(()=> t.classList.remove('show'), 3000);
+  }
+
+  // ───────── Auth + carga de alumno ─────────
+  onAuthStateChanged(auth, async (user)=>{
+    if(!user){
+      window.location.href = 'login.html';
+      return;
+    }
+    try {
+      const puente = await getDoc(doc(db, 'alumnoAuth', user.uid));
+      if(!puente.exists()){
+        toast('Tu cuenta no está vinculada correctamente.', true);
+        return;
+      }
+      const alumnoId = puente.data().alumnoId;
+      const alumnoSnap = await getDoc(doc(db, 'alumnos', alumnoId));
+      if(!alumnoSnap.exists()){
+        toast('No se encontró tu ficha de alumno.', true);
+        return;
+      }
+      alumnoActual = { alumnoId, ...alumnoSnap.data() };
+      pintarAlumno();
+      iniciarEscuchaSemana();
+    } catch(e){
+      console.error(e);
+      toast('Error al cargar tu información.', true);
+    }
+  });
+
+  function pintarAlumno(){
+    const nombre = alumnoActual.nombre || 'Alumno';
+    document.getElementById('alumno-nombre').textContent = nombre;
+    document.getElementById('alumno-curso').textContent = alumnoActual.moduloId || '';
+    document.getElementById('av-ini').textContent = nombre.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase();
+  }
+
+  window.cerrarSesion = function(){
+    signOut(auth).then(()=> window.location.href = 'login.html');
+  };
+
+  // ───────── Navegación de semana ─────────
+  window.cambiarSemana = function(delta){
+    inicioSemana.setDate(inicioSemana.getDate() + delta*7);
+    iniciarEscuchaSemana();
+  };
+  window.irHoy = function(){
+    inicioSemana = lunesDeEstaSemana(new Date());
+    iniciarEscuchaSemana();
+  };
+
+  // ───────── Escucha en tiempo real de la semana visible ─────────
+  function iniciarEscuchaSemana(){
+    document.getElementById('rango-semana').textContent = formatoRango(inicioSemana);
+    document.getElementById('grid-contenedor').innerHTML = '<div class="cargando">Cargando horarios...</div>';
+
+    if(unsubSlots) unsubSlots();
+
+    const dias = diasDeLaSemana(inicioSemana);
+    const fechaInicio = fechaISO(dias[0]);
+    const fechaFin = fechaISO(dias[6]);
+
+    const q = query(
+      collection(db, 'classSlots'),
+      where('fecha', '>=', fechaInicio),
+      where('fecha', '<=', fechaFin),
+      orderBy('fecha'),
+      orderBy('horaInicio')
+    );
+
+    unsubSlots = onSnapshot(q, (snap)=>{
+      slotsSemana = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      renderGrid();
+      renderResumen();
+    }, (err)=>{
+      console.error(err);
+      document.getElementById('grid-contenedor').innerHTML =
+        '<div class="vacio-todo">No se pudieron cargar los horarios. Verifica las reglas de Firestore o el índice compuesto (fecha + horaInicio).</div>';
+    });
+  }
+
+  // ───────── Render del grid semanal ─────────
+  function renderGrid(){
+    const dias = diasDeLaSemana(inicioSemana);
+    const hoy = new Date();
+    let html = '<div class="grid-semana">';
+
+    dias.forEach(dia=>{
+      const fISO = fechaISO(dia);
+      const esHoy = esMismaFecha(dia, hoy);
+      const slotsDia = slotsSemana.filter(s=> s.fecha === fISO && s.estado !== 'no_disponible' && s.estado !== 'cancelado');
+
+      html += `<div class="dia-col ${esHoy?'hoy':''}">`;
+      html += `<div class="dia-head"><div class="dn">${DIAS[dia.getDay()]}</div><div class="dd">${dia.getDate()}</div></div>`;
+      html += `<div class="dia-slots">`;
+
+      if(slotsDia.length === 0){
+        html += `<div class="vacio-dia">Sin clases</div>`;
+      } else {
+        slotsDia.forEach(s=>{
+          const esMia = (s.alumnosInscritos||[]).includes(alumnoActual.alumnoId);
+          const lleno = s.estado === 'lleno' && !esMia;
+          let clase = 'disponible';
+          if(esMia) clase = 'mia';
+          else if(lleno) clase = 'lleno';
+
+          html += `<div class="slot ${clase}" onclick='abrirModal(${JSON.stringify(s).replace(/'/g,"&#39;")})'>`
+                + `<div class="hora">${s.horaInicio} - ${s.horaFin}</div>`
+                + `<div class="inst">${s.instructorNombre||'Instructor'}</div>`
+                + `<div class="curso-n">${esMia? 'Tu reserva ✓' : (s.cursoId||'')}</div>`
+                + `</div>`;
+        });
+      }
+
+      html += `</div></div>`;
+    });
+
+    html += '</div>';
+    document.getElementById('grid-contenedor').innerHTML = html;
+  }
+
+  function renderResumen(){
+    const proximas = slotsSemana.filter(s => (s.alumnosInscritos||[]).includes(alumnoActual.alumnoId)).length;
+    document.getElementById('resumen-proximas').textContent = proximas;
+    const restantes = alumnoActual.membresia?.clasesRestantes;
+    document.getElementById('resumen-restantes').textContent = (restantes !== undefined && restantes !== null) ? restantes : '—';
+  }
+
+  // ───────── Modal: abrir según estado del slot ─────────
+  window.abrirModal = function(slot){
+    const esMia = (slot.alumnosInscritos||[]).includes(alumnoActual.alumnoId);
+    if(slot.estado === 'lleno' && !esMia){
+      toast('Esta clase ya no tiene cupos disponibles.', true);
+      return;
+    }
+    slotSeleccionado = slot;
+    modoModal = esMia ? 'cancelar' : 'reservar';
+
+    document.getElementById('modal-titulo').textContent = esMia ? 'Cancelar tu reserva' : 'Confirmar reserva';
+    document.getElementById('md-instructor').textContent = slot.instructorNombre || '—';
+    document.getElementById('md-fecha').textContent = slot.fecha;
+    document.getElementById('md-horario').textContent = slot.horaInicio + ' - ' + slot.horaFin;
+    document.getElementById('md-curso').textContent = slot.cursoId || '—';
+    document.getElementById('modal-err').textContent = '';
+
+    const btn = document.getElementById('btn-confirmar-modal');
+    btn.textContent = esMia ? 'Cancelar reserva' : 'Confirmar';
+    btn.className = 'btn btn-confirmar' + (esMia ? ' cancelar-reserva' : '');
+    btn.disabled = false;
+    btn.onclick = esMia ? confirmarCancelacion : confirmarReserva;
+
+    document.getElementById('modal-ov').classList.add('show');
+  };
+
+  window.cerrarModal = function(){
+    document.getElementById('modal-ov').classList.remove('show');
+    slotSeleccionado = null;
+  };
+
+  // ───────── Transacción: RESERVAR (anti doble-booking) ─────────
+  async function confirmarReserva(){
+    const btn = document.getElementById('btn-confirmar-modal');
+    btn.disabled = true; btn.textContent = 'Reservando...';
+    const slotRef = doc(db, 'classSlots', slotSeleccionado.id);
+    const bookingRef = doc(collection(db, 'bookings'));
+
+    try {
+      await runTransaction(db, async (transaction)=>{
+        const slotSnap = await transaction.get(slotRef);
+        if(!slotSnap.exists()) throw new Error('Esta clase ya no existe.');
+        const slot = slotSnap.data();
+
+        if(slot.estado !== 'disponible') throw new Error('Este horario ya no está disponible.');
+        if((slot.cuposDisponibles||0) <= 0) throw new Error('No quedan cupos para esta clase.');
+        if((slot.alumnosInscritos||[]).includes(alumnoActual.alumnoId)) throw new Error('Ya estás inscrito en esta clase.');
+
+        const nuevosInscritos = [...(slot.alumnosInscritos||[]), alumnoActual.alumnoId];
+        const nuevosCupos = slot.cuposDisponibles - 1;
+
+        transaction.update(slotRef, {
+          alumnosInscritos: nuevosInscritos,
+          cuposDisponibles: nuevosCupos,
+          estado: nuevosCupos === 0 ? 'lleno' : 'disponible'
+        });
+
+        transaction.set(bookingRef, {
+          alumnoId: alumnoActual.alumnoId,
+          alumnoNombre: alumnoActual.nombre || '',
+          slotId: slotSeleccionado.id,
+          instructorId: slot.instructorId || '',
+          cursoId: slot.cursoId || '',
+          fecha: slot.fecha,
+          horaInicio: slot.horaInicio,
+          estado: 'confirmada',
+          creadoEn: serverTimestamp()
+        });
+      });
+
+      cerrarModal();
+      toast('¡Clase reservada con éxito! 🎧');
+
+    } catch(e){
+      console.error(e);
+      document.getElementById('modal-err').textContent = e.message || 'No se pudo completar la reserva.';
+      btn.disabled = false; btn.textContent = 'Confirmar';
+    }
+  }
+
+  // ───────── Transacción: CANCELAR reserva propia ─────────
+  async function confirmarCancelacion(){
+    const btn = document.getElementById('btn-confirmar-modal');
+    btn.disabled = true; btn.textContent = 'Cancelando...';
+    const slotRef = doc(db, 'classSlots', slotSeleccionado.id);
+
+    try {
+      await runTransaction(db, async (transaction)=>{
+        const slotSnap = await transaction.get(slotRef);
+        if(!slotSnap.exists()) throw new Error('Esta clase ya no existe.');
+        const slot = slotSnap.data();
+
+        const nuevosInscritos = (slot.alumnosInscritos||[]).filter(id => id !== alumnoActual.alumnoId);
+
+        transaction.update(slotRef, {
+          alumnosInscritos: nuevosInscritos,
+          cuposDisponibles: (slot.cuposDisponibles||0) + 1,
+          estado: 'disponible'
+        });
+      });
+
+      cerrarModal();
+      toast('Reserva cancelada. El cupo quedó disponible.');
+
+    } catch(e){
+      console.error(e);
+      document.getElementById('modal-err').textContent = e.message || 'No se pudo cancelar.';
+      btn.disabled = false; btn.textContent = 'Cancelar reserva';
+    }
+  }
+
+  document.getElementById('modal-ov').addEventListener('click', (e)=>{
+    if(e.target.id === 'modal-ov') cerrarModal();
+  });
+</script>
+
+</body>
+</html>

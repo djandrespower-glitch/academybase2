@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panel de Horarios — Deejay Academy</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+
+  :root{
+    --negro:#0a0a0a;
+    --rojo:#c0392b;
+    --rojo-vivo:#e74c3c;
+    --crema:#f4f4f0;
+    --gris-linea:#e6e4dd;
+    --gris-texto:#777;
+    --verde:#15803d;
+    --verde-bg:#dcfce7;
+    --amarillo-bg:#fef9c3;
+    --amarillo:#a16207;
+  }
+
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    background:var(--crema);
+    color:var(--negro);
+    min-height:100vh;
+  }
+
+  .topbar{
+    background:var(--negro);color:#fff;padding:16px 24px;
+    display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+  }
+  .topbar h1{font-size:16px;font-weight:800}
+  .topbar .sub{font-size:11px;color:#999}
+  .topbar .marca{display:flex;align-items:center;gap:10px}
+  .topbar .marca .punto{width:9px;height:9px;border-radius:50%;background:var(--rojo-vivo)}
+
+  .wrap{max-width:1200px;margin:0 auto;padding:24px}
+
+  .tabs{display:flex;gap:6px;margin-bottom:20px;background:#fff;border:1px solid var(--gris-linea);border-radius:12px;padding:5px}
+  .tab{flex:1;text-align:center;padding:10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:#888}
+  .tab.active{background:var(--negro);color:#fff}
+
+  .panel{display:none}
+  .panel.active{display:block}
+
+  .card{background:#fff;border:1px solid var(--gris-linea);border-radius:14px;padding:20px;margin-bottom:18px}
+  .card h2{font-size:15px;font-weight:800;margin-bottom:4px}
+  .card .desc{font-size:12.5px;color:var(--gris-texto);margin-bottom:18px}
+
+  .fg{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .fg.cols3{grid-template-columns:1fr 1fr 1fr}
+  .fgp{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+  .fgp.full{grid-column:1/-1}
+  label{font-size:12px;font-weight:600;color:#444}
+  input,select{
+    padding:9px 12px;border:1.5px solid var(--gris-linea);border-radius:8px;
+    font-size:13.5px;outline:none;font-family:inherit;background:#fff;
+  }
+  input:focus,select:focus{border-color:var(--rojo)}
+
+  .dias-selector{display:flex;gap:6px;flex-wrap:wrap}
+  .dia-chip{
+    padding:8px 12px;border:1.5px solid var(--gris-linea);border-radius:8px;
+    cursor:pointer;font-size:12.5px;font-weight:600;color:#888;user-select:none;
+  }
+  .dia-chip.sel{background:var(--negro);color:#fff;border-color:var(--negro)}
+
+  .btn{padding:11px 18px;border-radius:9px;border:none;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit}
+  .btn-rojo{background:var(--rojo);color:#fff}
+  .btn-rojo:hover{background:#a8311f}
+  .btn-rojo:disabled{background:#ccc;cursor:not-allowed}
+  .btn-oscuro{background:var(--negro);color:#fff}
+  .btn-claro{background:#f0eee8;color:#444}
+  .btn-claro:hover{background:#e6e3da}
+  .btn-sm{padding:6px 11px;font-size:12px;border-radius:7px}
+
+  .msg{font-size:12.5px;margin-top:10px;min-height:16px}
+  .msg.err{color:var(--rojo)}
+  .msg.ok{color:var(--verde)}
+
+  /* Lista de instructores */
+  .lista-inst{display:flex;flex-direction:column;gap:8px}
+  .inst-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:11px 14px;border:1px solid var(--gris-linea);border-radius:10px;
+  }
+  .inst-row .info{display:flex;flex-direction:column;gap:2px}
+  .inst-row .nom{font-weight:700;font-size:13.5px}
+  .inst-row .cursos{font-size:11.5px;color:var(--gris-texto)}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600}
+  .badge.on{background:var(--verde-bg);color:var(--verde)}
+  .badge.off{background:#f3f1ec;color:#999}
+
+  /* Tabla de slots */
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;padding:9px 10px;color:var(--gris-texto);font-weight:600;border-bottom:1px solid var(--gris-linea);font-size:11px;text-transform:uppercase}
+  td{padding:9px 10px;border-bottom:1px solid #f3f1ec;vertical-align:middle}
+  tr:hover td{background:#fafaf8}
+
+  .est-badge{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+  .est-disponible{background:var(--verde-bg);color:var(--verde)}
+  .est-lleno{background:var(--amarillo-bg);color:var(--amarillo)}
+  .est-no_disponible{background:#f0eee8;color:#999}
+  .est-cancelado{background:#fee2e2;color:var(--rojo)}
+
+  .filtros-tabla{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .filtros-tabla select,.filtros-tabla input{flex:1;min-width:140px}
+
+  .vacio{text-align:center;color:#aaa;padding:30px;font-size:13px}
+
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--negro);color:#fff;padding:12px 20px;border-radius:10px;
+    font-size:13px;font-weight:600;opacity:0;transition:.25s;z-index:2000;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.err{background:var(--rojo)}
+
+  @media (max-width:760px){
+    .fg,.fg.cols3{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="marca">
+      <span class="punto"></span>
+      <div>
+        <h1>DEEJAY ACADEMY</h1>
+        <div class="sub">Panel de horarios — Staff</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <div class="tabs">
+      <div class="tab active" id="tab-instructores" onclick="cambiarPanel('instructores')">Instructores</div>
+      <div class="tab" id="tab-generar" onclick="cambiarPanel('generar')">Generar horarios</div>
+      <div class="tab" id="tab-gestionar" onclick="cambiarPanel('gestionar')">Gestionar / Bloquear</div>
+    </div>
+
+    <!-- ═══════ PANEL: INSTRUCTORES ═══════ -->
+    <div class="panel active" id="panel-instructores">
+      <div class="card">
+        <h2>Agregar instructor</h2>
+        <div class="desc">Crea un instructor nuevo para poder asignarle horarios.</div>
+
+        <div class="fg">
+          <div class="fgp">
+            <label>Nombre completo</label>
+            <input id="inst-nombre" placeholder="Ej: Carlos Ruiz">
+          </div>
+          <div class="fgp">
+            <label>Curso(s) que imparte</label>
+            <select id="inst-cursos" multiple style="min-height:70px"></select>
+          </div>
+        </div>
+        <button class="btn btn-rojo" id="btn-add-inst" onclick="agregarInstructor()">+ Agregar instructor</button>
+        <div class="msg" id="inst-msg"></div>
+      </div>
+
+      <div class="card">
+        <h2>Instructores existentes</h2>
+        <div class="desc">Activa, desactiva o consulta tus instructores.</div>
+        <div class="lista-inst" id="lista-instructores">
+          <div class="vacio">Cargando...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════ PANEL: GENERAR HORARIOS ═══════ -->
+    <div class="panel" id="panel-generar">
+      <div class="card">
+        <h2>Generar horarios por patrón semanal</h2>
+        <div class="desc">Define el patrón una vez y se crean todos los slots automáticamente.</div>
+
+        <div class="fg">
+          <div class="fgp">
+            <label>Instructor</label>
+            <select id="gen-instructor"></select>
+          </div>
+          <div class="fgp">
+            <label>Curso</label>
+            <select id="gen-curso"></select>
+          </div>
+        </div>
+
+        <div class="fgp full">
+          <label>Días de la semana</label>
+          <div class="dias-selector" id="dias-selector">
+            <div class="dia-chip" data-dia="1">Lun</div>
+            <div class="dia-chip" data-dia="2">Mar</div>
+            <div class="dia-chip" data-dia="3">Mié</div>
+            <div class="dia-chip" data-dia="4">Jue</div>
+            <div class="dia-chip" data-dia="5">Vie</div>
+            <div class="dia-chip" data-dia="6">Sáb</div>
+            <div class="dia-chip" data-dia="0">Dom</div>
+          </div>
+        </div>
+
+        <div class="fg cols3">
+          <div class="fgp">
+            <label>Hora inicio del bloque</label>
+            <input type="time" id="gen-hora-inicio" value="09:00">
+          </div>
+          <div class="fgp">
+            <label>Hora fin del bloque</label>
+            <input type="time" id="gen-hora-fin" value="18:00">
+          </div>
+          <div class="fgp">
+            <label>Duración de cada clase (min)</label>
+            <input type="number" id="gen-duracion" value="60" step="15" min="15">
+          </div>
+        </div>
+
+        <div class="fg cols3">
+          <div class="fgp">
+            <label>Fecha de inicio</label>
+            <input type="date" id="gen-fecha-inicio">
+          </div>
+          <div class="fgp">
+            <label>Repetir por (semanas)</label>
+            <input type="number" id="gen-semanas" value="4" min="1" max="12">
+          </div>
+          <div class="fgp">
+            <label>Cupos por clase</label>
+            <input type="number" id="gen-capacidad" value="1" min="1">
+          </div>
+        </div>
+
+        <div class="msg" id="gen-preview" style="color:#555;font-weight:600"></div>
+        <button class="btn btn-rojo" id="btn-generar" onclick="generarSlots()">Generar horarios</button>
+        <div class="msg" id="gen-msg"></div>
+      </div>
+    </div>
+
+    <!-- ═══════ PANEL: GESTIONAR / BLOQUEAR ═══════ -->
+    <div class="panel" id="panel-gestionar">
+      <div class="card">
+        <h2>Horarios existentes</h2>
+        <div class="desc">Bloquea, desbloquea o elimina horarios individuales.</div>
+
+        <div class="filtros-tabla">
+          <input type="date" id="filtro-fecha-desde">
+          <input type="date" id="filtro-fecha-hasta">
+          <select id="filtro-instructor"><option value="">Todos los instructores</option></select>
+          <button class="btn btn-claro btn-sm" onclick="cargarSlotsGestion()">Filtrar</button>
+        </div>
+
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr><th>Fecha</th><th>Horario</th><th>Instructor</th><th>Curso</th><th>Cupos</th><th>Estado</th><th>Acciones</th></tr>
+            </thead>
+            <tbody id="tabla-slots">
+              <tr><td colspan="7" class="vacio">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import {
+    getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
+    getDocs, query, where, orderBy, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey:            "AIzaSyCSrMuYRkMAZrp5v0AafK45xqFwdkBquqY",
+    authDomain:        "deejya-academy-base-alumnos.firebaseapp.com",
+    projectId:         "deejya-academy-base-alumnos",
+    storageBucket:     "deejya-academy-base-alumnos.firebasestorage.app",
+    messagingSenderId: "1092925669565",
+    appId:             "1:1092925669565:web:8f30089783c52947d777d4"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  let CURSOS = [];
+  let INSTRUCTORES = [];
+  let diasSeleccionados = new Set();
+
+  // ───────── Navegación entre paneles ─────────
+  window.cambiarPanel = function(p){
+    ['instructores','generar','gestionar'].forEach(id=>{
+      document.getElementById('panel-'+id).classList.toggle('active', id===p);
+      document.getElementById('tab-'+id).classList.toggle('active', id===p);
+    });
+    if(p === 'gestionar') cargarSlotsGestion();
+  };
+
+  function toast(msg, esError){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (esError?' err':'');
+    setTimeout(()=>t.classList.remove('show'), 3000);
+  }
+
+  // ───────── Cargar cursos existentes (colección real) ─────────
+  async function cargarCursos(){
+    const snap = await getDocs(collection(db, 'cursos'));
+    CURSOS = snap.docs.map(d=>({id:d.id, ...d.data()}));
+
+    const selInst = document.getElementById('inst-cursos');
+    const selGenCurso = document.getElementById('gen-curso');
+    selInst.innerHTML = CURSOS.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+    selGenCurso.innerHTML = CURSOS.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+  }
+
+  // ───────── Cargar instructores ─────────
+  async function cargarInstructores(){
+    const snap = await getDocs(collection(db, 'instructores'));
+    INSTRUCTORES = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    renderListaInstructores();
+    renderSelectGenInstructor();
+    renderSelectFiltroInstructor();
+  }
+
+  function renderListaInstructores(){
+    const cont = document.getElementById('lista-instructores');
+    if(INSTRUCTORES.length === 0){
+      cont.innerHTML = '<div class="vacio">Aún no has agregado instructores.</div>';
+      return;
+    }
+    cont.innerHTML = INSTRUCTORES.map(i=>{
+      const nombresCursos = (i.cursosQueImparte||[]).map(cid=>{
+        const c = CURSOS.find(x=>x.id===cid);
+        return c ? c.nombre : cid;
+      }).join(', ');
+      return `<div class="inst-row">
+        <div class="info">
+          <div class="nom">${i.nombre}</div>
+          <div class="cursos">${nombresCursos || 'Sin curso asignado'}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="badge ${i.activo?'on':'off'}">${i.activo?'Activo':'Inactivo'}</span>
+          <button class="btn btn-claro btn-sm" onclick="toggleInstructor('${i.id}', ${!i.activo})">${i.activo?'Desactivar':'Activar'}</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderSelectGenInstructor(){
+    const sel = document.getElementById('gen-instructor');
+    const activos = INSTRUCTORES.filter(i=>i.activo);
+    sel.innerHTML = activos.length
+      ? activos.map(i=>`<option value="${i.id}" data-nombre="${i.nombre}">${i.nombre}</option>`).join('')
+      : '<option value="">No hay instructores activos</option>';
+  }
+
+  function renderSelectFiltroInstructor(){
+    const sel = document.getElementById('filtro-instructor');
+    sel.innerHTML = '<option value="">Todos los instructores</option>' +
+      INSTRUCTORES.map(i=>`<option value="${i.id}">${i.nombre}</option>`).join('');
+  }
+
+  window.toggleInstructor = async function(id, nuevoEstado){
+    await updateDoc(doc(db, 'instructores', id), { activo: nuevoEstado });
+    toast(nuevoEstado ? 'Instructor activado' : 'Instructor desactivado');
+    cargarInstructores();
+  };
+
+  window.agregarInstructor = async function(){
+    const nombre = document.getElementById('inst-nombre').value.trim();
+    const selCursos = document.getElementById('inst-cursos');
+    const cursosSel = Array.from(selCursos.selectedOptions).map(o=>o.value);
+    const msg = document.getElementById('inst-msg');
+    const btn = document.getElementById('btn-add-inst');
+
+    msg.className = 'msg'; msg.textContent = '';
+    if(!nombre){ msg.className='msg err'; msg.textContent='Escribe el nombre del instructor.'; return; }
+
+    btn.disabled = true; btn.textContent = 'Agregando...';
+    try {
+      await addDoc(collection(db, 'instructores'), {
+        nombre, cursosQueImparte: cursosSel, activo: true, creadoEn: serverTimestamp()
+      });
+      document.getElementById('inst-nombre').value = '';
+      selCursos.selectedIndex = -1;
+      msg.className = 'msg ok'; msg.textContent = '¡Instructor agregado!';
+      cargarInstructores();
+    } catch(e){
+      console.error(e);
+      msg.className = 'msg err'; msg.textContent = 'Error al guardar. Intenta de nuevo.';
+    }
+    btn.disabled = false; btn.textContent = '+ Agregar instructor';
+  };
+
+  // ───────── Selector de días (chips) ─────────
+  document.getElementById('dias-selector').addEventListener('click', (e)=>{
+    const chip = e.target.closest('.dia-chip');
+    if(!chip) return;
+    const dia = chip.dataset.dia;
+    if(diasSeleccionados.has(dia)){ diasSeleccionados.delete(dia); chip.classList.remove('sel'); }
+    else { diasSeleccionados.add(dia); chip.classList.add('sel'); }
+    actualizarPreview();
+  });
+
+  ['gen-hora-inicio','gen-hora-fin','gen-duracion','gen-fecha-inicio','gen-semanas'].forEach(id=>{
+    document.getElementById(id).addEventListener('input', actualizarPreview);
+  });
+
+  function minutosDesde(hhmm){ const [h,m]=hhmm.split(':').map(Number); return h*60+m; }
+  function hhmmDesdeMin(min){ const h=Math.floor(min/60), m=min%60; return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'); }
+
+  function actualizarPreview(){
+    const hi = document.getElementById('gen-hora-inicio').value;
+    const hf = document.getElementById('gen-hora-fin').value;
+    const dur = parseInt(document.getElementById('gen-duracion').value)||60;
+    const semanas = parseInt(document.getElementById('gen-semanas').value)||1;
+
+    if(!hi || !hf || diasSeleccionados.size===0){
+      document.getElementById('gen-preview').textContent = '';
+      return;
+    }
+    const bloquesPorDia = Math.floor((minutosDesde(hf)-minutosDesde(hi))/dur);
+    const total = Math.max(bloquesPorDia,0) * diasSeleccionados.size * semanas;
+    document.getElementById('gen-preview').textContent =
+      `Se generarán ${total} slots (${bloquesPorDia} por día × ${diasSeleccionados.size} día(s) × ${semanas} semana(s)).`;
+  }
+
+  // ───────── Generar slots masivos ─────────
+  window.generarSlots = async function(){
+    const instSel = document.getElementById('gen-instructor');
+    const instructorId = instSel.value;
+    const instructorNombre = instSel.selectedOptions[0]?.dataset.nombre || '';
+    const cursoId = document.getElementById('gen-curso').value;
+    const hi = document.getElementById('gen-hora-inicio').value;
+    const hf = document.getElementById('gen-hora-fin').value;
+    const dur = parseInt(document.getElementById('gen-duracion').value)||60;
+    const fechaInicioStr = document.getElementById('gen-fecha-inicio').value;
+    const semanas = parseInt(document.getElementById('gen-semanas').value)||1;
+    const capacidad = parseInt(document.getElementById('gen-capacidad').value)||1;
+    const msg = document.getElementById('gen-msg');
+    const btn = document.getElementById('btn-generar');
+
+    msg.className='msg'; msg.textContent='';
+
+    if(!instructorId){ msg.className='msg err'; msg.textContent='Selecciona un instructor.'; return; }
+    if(!cursoId){ msg.className='msg err'; msg.textContent='Selecciona un curso.'; return; }
+    if(diasSeleccionados.size===0){ msg.className='msg err'; msg.textContent='Selecciona al menos un día de la semana.'; return; }
+    if(!fechaInicioStr){ msg.className='msg err'; msg.textContent='Selecciona la fecha de inicio.'; return; }
+
+    const bloquesPorDia = Math.floor((minutosDesde(hf)-minutosDesde(hi))/dur);
+    if(bloquesPorDia <= 0){ msg.className='msg err'; msg.textContent='El rango de horas no permite ningún bloque con esa duración.'; return; }
+
+    btn.disabled = true; btn.textContent = 'Generando...';
+
+    try {
+      const fechaInicio = new Date(fechaInicioStr + 'T00:00:00');
+      let creados = 0;
+
+      for(let semana=0; semana<semanas; semana++){
+        for(let diaOffset=0; diaOffset<7; diaOffset++){
+          const fecha = new Date(fechaInicio);
+          fecha.setDate(fecha.getDate() + semana*7 + diaOffset);
+          const diaSemana = String(fecha.getDay());
+
+          if(!diasSeleccionados.has(diaSemana)) continue;
+          if(fecha < fechaInicio) continue;
+
+          const fechaISO = fecha.getFullYear()+'-'+String(fecha.getMonth()+1).padStart(2,'0')+'-'+String(fecha.getDate()).padStart(2,'0');
+
+          for(let b=0; b<bloquesPorDia; b++){
+            const inicioMin = minutosDesde(hi) + b*dur;
+            const finMin = inicioMin + dur;
+
+            await addDoc(collection(db, 'classSlots'), {
+              instructorId, instructorNombre, cursoId,
+              fecha: fechaISO,
+              horaInicio: hhmmDesdeMin(inicioMin),
+              horaFin: hhmmDesdeMin(finMin),
+              capacidadMax: capacidad,
+              alumnosInscritos: [],
+              cuposDisponibles: capacidad,
+              estado: 'disponible',
+              creadoEn: serverTimestamp()
+            });
+            creados++;
+          }
+        }
+      }
+
+      msg.className = 'msg ok'; msg.textContent = `¡Listo! Se crearon ${creados} horarios.`;
+      toast(`${creados} horarios generados con éxito`);
+
+    } catch(e){
+      console.error(e);
+      msg.className = 'msg err'; msg.textContent = 'Ocurrió un error generando los horarios.';
+    }
+    btn.disabled = false; btn.textContent = 'Generar horarios';
+  };
+
+  // ───────── Gestionar / Bloquear slots existentes ─────────
+  window.cargarSlotsGestion = async function(){
+    const tbody = document.getElementById('tabla-slots');
+    tbody.innerHTML = '<tr><td colspan="7" class="vacio">Cargando...</td></tr>';
+
+    const desde = document.getElementById('filtro-fecha-desde').value;
+    const hasta = document.getElementById('filtro-fecha-hasta').value;
+    const instFiltro = document.getElementById('filtro-instructor').value;
+
+    try {
+      let condiciones = [];
+      if(desde) condiciones.push(where('fecha', '>=', desde));
+      if(hasta) condiciones.push(where('fecha', '<=', hasta));
+
+      const q = condiciones.length
+        ? query(collection(db, 'classSlots'), ...condiciones, orderBy('fecha'), orderBy('horaInicio'))
+        : query(collection(db, 'classSlots'), orderBy('fecha'), orderBy('horaInicio'));
+
+      const snap = await getDocs(q);
+      let slots = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      if(instFiltro) slots = slots.filter(s=>s.instructorId === instFiltro);
+
+      if(slots.length === 0){
+        tbody.innerHTML = '<tr><td colspan="7" class="vacio">No hay horarios con estos filtros.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = slots.map(s=>{
+        const cursoNombre = CURSOS.find(c=>c.id===s.cursoId)?.nombre || s.cursoId || '—';
+        return `<tr>
+          <td>${s.fecha}</td>
+          <td>${s.horaInicio} - ${s.horaFin}</td>
+          <td>${s.instructorNombre||'—'}</td>
+          <td>${cursoNombre}</td>
+          <td>${(s.cuposDisponibles??'-')}/${s.capacidadMax??'-'}</td>
+          <td><span class="est-badge est-${s.estado}">${etiquetaEstado(s.estado)}</span></td>
+          <td style="display:flex;gap:5px">
+            ${s.estado==='no_disponible'
+              ? `<button class="btn btn-claro btn-sm" onclick="cambiarEstadoSlot('${s.id}','disponible')">Desbloquear</button>`
+              : `<button class="btn btn-claro btn-sm" onclick="cambiarEstadoSlot('${s.id}','no_disponible')">Bloquear</button>`
+            }
+            <button class="btn btn-claro btn-sm" onclick="eliminarSlot('${s.id}')">Eliminar</button>
+          </td>
+        </tr>`;
+      }).join('');
+
+    } catch(e){
+      console.error(e);
+      tbody.innerHTML = '<tr><td colspan="7" class="vacio">Error al cargar. Revisa el índice de Firestore (fecha + horaInicio).</td></tr>';
+    }
+  };
+
+  function etiquetaEstado(e){
+    return { disponible:'Disponible', lleno:'Lleno', no_disponible:'Bloqueado', cancelado:'Cancelado' }[e] || e;
+  }
+
+  window.cambiarEstadoSlot = async function(id, nuevoEstado){
+    await updateDoc(doc(db, 'classSlots', id), { estado: nuevoEstado });
+    toast(nuevoEstado==='no_disponible' ? 'Horario bloqueado' : 'Horario desbloqueado');
+    cargarSlotsGestion();
+  };
+
+  window.eliminarSlot = async function(id){
+    if(!confirm('¿Eliminar este horario? Esta acción no se puede deshacer.')) return;
+    await deleteDoc(doc(db, 'classSlots', id));
+    toast('Horario eliminado');
+    cargarSlotsGestion();
+  };
+
+  // ───────── Init ─────────
+  (async function init(){
+    await cargarCursos();
+    await cargarInstructores();
+  })();
+</script>
+
+</body>
+</html>

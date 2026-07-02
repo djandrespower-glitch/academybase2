@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Deejya Academy — Portal de Alumnos</title>
+<style>
+  @font-face {
+    font-family: 'Anton';
+    src: local('Anton');
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+
+  :root{
+    --negro:#0a0a0a;
+    --rojo:#c0392b;
+    --rojo-vivo:#e74c3c;
+    --crema:#f4f4f0;
+    --gris-linea:#e0e0e0;
+    --gris-texto:#6b6b6b;
+  }
+
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    background:var(--negro);
+    color:#fff;
+    min-height:100vh;
+    display:flex;
+    overflow-x:hidden;
+  }
+
+  /* ===== Panel izquierdo: identidad / signature ===== */
+  .panel-marca{
+    flex:1.1;
+    background:var(--negro);
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    padding:48px;
+    overflow:hidden;
+    min-height:100vh;
+  }
+
+  /* Ecualizador animado de fondo — el elemento de firma */
+  .eq{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:flex-end;
+    gap:6px;
+    padding:0 40px 0;
+    opacity:.35;
+    z-index:0;
+  }
+  .eq span{
+    flex:1;
+    background:linear-gradient(180deg,var(--rojo-vivo),var(--rojo) 60%,transparent);
+    border-radius:3px 3px 0 0;
+    animation:bounce 1.8s ease-in-out infinite;
+  }
+  @keyframes bounce{
+    0%,100%{height:8%}
+    50%{height:var(--h,70%)}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .eq span{animation:none;height:30%}
+  }
+
+  .marca-top{position:relative;z-index:1}
+  .marca-top .eyebrow{
+    font-size:11px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:var(--rojo-vivo);
+    font-weight:700;
+    margin-bottom:10px;
+  }
+  .marca-top h1{
+    font-size:clamp(38px,6vw,58px);
+    line-height:0.95;
+    font-weight:900;
+    letter-spacing:-1px;
+  }
+  .marca-top h1 em{
+    font-style:normal;
+    color:var(--rojo-vivo);
+  }
+
+  .marca-bottom{position:relative;z-index:1;max-width:420px}
+  .marca-bottom p{
+    color:#aaa;
+    font-size:14px;
+    line-height:1.6;
+  }
+  .marca-bottom .frase{
+    font-size:13px;
+    color:#666;
+    margin-top:18px;
+    border-left:2px solid var(--rojo);
+    padding-left:12px;
+  }
+
+  /* ===== Panel derecho: formulario ===== */
+  .panel-form{
+    flex:1;
+    background:var(--crema);
+    color:var(--negro);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:40px 32px;
+    min-height:100vh;
+  }
+
+  .caja{
+    width:100%;
+    max-width:380px;
+  }
+
+  .tabs{
+    display:flex;
+    gap:4px;
+    background:#e8e6df;
+    border-radius:10px;
+    padding:4px;
+    margin-bottom:28px;
+  }
+  .tab{
+    flex:1;
+    text-align:center;
+    padding:9px 0;
+    border-radius:7px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    color:#777;
+    transition:.15s;
+    user-select:none;
+  }
+  .tab.active{
+    background:var(--negro);
+    color:#fff;
+  }
+
+  .caja h2{
+    font-size:22px;
+    font-weight:800;
+    margin-bottom:6px;
+  }
+  .caja .sub{
+    font-size:13px;
+    color:var(--gris-texto);
+    margin-bottom:24px;
+  }
+
+  .fp{display:flex;flex-direction:column;gap:4px;margin-bottom:14px}
+  label{font-size:12px;font-weight:600;color:#444}
+  input{
+    padding:11px 14px;
+    border:1.5px solid var(--gris-linea);
+    border-radius:9px;
+    font-size:14px;
+    outline:none;
+    font-family:inherit;
+    background:#fff;
+    transition:.15s;
+  }
+  input:focus{border-color:var(--rojo)}
+
+  .err{
+    color:var(--rojo);
+    font-size:12.5px;
+    min-height:18px;
+    margin:4px 0 8px;
+    font-weight:500;
+  }
+  .ok{
+    color:#15803d;
+    font-size:12.5px;
+    min-height:18px;
+    margin:4px 0 8px;
+    font-weight:500;
+  }
+
+  .btn-principal{
+    width:100%;
+    padding:13px;
+    background:var(--rojo);
+    color:#fff;
+    border:none;
+    border-radius:9px;
+    font-size:14px;
+    font-weight:700;
+    cursor:pointer;
+    margin-top:6px;
+    transition:.15s;
+    letter-spacing:.3px;
+  }
+  .btn-principal:hover{background:#a8311f}
+  .btn-principal:disabled{background:#ccc;cursor:not-allowed}
+
+  .hint-registro{
+    margin-top:18px;
+    font-size:12px;
+    color:var(--gris-texto);
+    line-height:1.5;
+    background:#fff;
+    border:1px dashed var(--gris-linea);
+    border-radius:8px;
+    padding:10px 12px;
+  }
+
+  .vista{display:none}
+  .vista.active{display:block}
+
+  .pie{
+    margin-top:28px;
+    text-align:center;
+    font-size:11px;
+    color:#999;
+  }
+
+  @media (max-width:860px){
+    body{flex-direction:column}
+    .panel-marca{min-height:240px;padding:32px}
+    .panel-form{min-height:auto;padding:32px 24px 56px}
+    .marca-bottom{display:none}
+  }
+</style>
+</head>
+<body>
+
+  <div class="panel-marca">
+    <div class="eq" id="eq"></div>
+    <div class="marca-top">
+      <div class="eyebrow">Portal de alumnos</div>
+      <h1>DEEJAY<br><em>ACADEMY</em></h1>
+    </div>
+    <div class="marca-bottom">
+      <p>Reserva tu próxima clase con el instructor que quieras, en el horario que mejor te funcione.</p>
+      <div class="frase">"La mezcla perfecta empieza con el horario perfecto."</div>
+    </div>
+  </div>
+
+  <div class="panel-form">
+    <div class="caja">
+
+      <div class="tabs">
+        <div class="tab active" id="tab-login" onclick="cambiarVista('login')">Iniciar sesión</div>
+        <div class="tab" id="tab-registro" onclick="cambiarVista('registro')">Crear cuenta</div>
+      </div>
+
+      <!-- VISTA LOGIN -->
+      <div class="vista active" id="vista-login">
+        <h2>Bienvenido de nuevo</h2>
+        <div class="sub">Ingresa para ver tu calendario de clases.</div>
+
+        <div class="fp">
+          <label>Correo electrónico</label>
+          <input id="login-email" type="email" placeholder="tucorreo@gmail.com" autocomplete="email">
+        </div>
+        <div class="fp">
+          <label>Contraseña</label>
+          <input id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <div class="err" id="login-err"></div>
+
+        <button class="btn-principal" id="btn-login" onclick="hacerLogin()">Entrar</button>
+      </div>
+
+      <!-- VISTA REGISTRO -->
+      <div class="vista" id="vista-registro">
+        <h2>Crea tu cuenta</h2>
+        <div class="sub">Usa el mismo correo que registraste con recepción.</div>
+
+        <div class="fp">
+          <label>Correo electrónico</label>
+          <input id="reg-email" type="email" placeholder="tucorreo@gmail.com" autocomplete="email">
+        </div>
+        <div class="fp">
+          <label>Crea una contraseña</label>
+          <input id="reg-pass" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+        </div>
+        <div class="fp">
+          <label>Confirma tu contraseña</label>
+          <input id="reg-pass2" type="password" placeholder="Repite la contraseña" autocomplete="new-password">
+        </div>
+        <div class="err" id="reg-err"></div>
+        <div class="ok" id="reg-ok"></div>
+
+        <button class="btn-principal" id="btn-registro" onclick="hacerRegistro()">Crear cuenta</button>
+
+        <div class="hint-registro">
+          ¿No te reconoce el correo? Significa que tu ficha aún no está registrada en recepción. Pídeles que la creen con tu email antes de intentar de nuevo.
+        </div>
+      </div>
+
+      <div class="pie">Deejya Academy © 2026</div>
+    </div>
+  </div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import {
+    getFirestore, collection, query, where, getDocs,
+    doc, setDoc, getDoc, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import {
+    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+    onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey:            "AIzaSyCSrMuYRkMAZrp5v0AafK45xqFwdkBquqY",
+    authDomain:        "deejya-academy-base-alumnos.firebaseapp.com",
+    projectId:         "deejya-academy-base-alumnos",
+    storageBucket:     "deejya-academy-base-alumnos.firebasestorage.app",
+    messagingSenderId: "1092925669565",
+    appId:             "1:1092925669565:web:8f30089783c52947d777d4"
+  };
+
+  const app  = initializeApp(firebaseConfig);
+  const db   = getFirestore(app);
+  const auth = getAuth(app);
+
+  // ── Cambiar entre vistas login/registro ──────────────────
+  window.cambiarVista = function(v){
+    document.getElementById('vista-login').classList.toggle('active', v==='login');
+    document.getElementById('vista-registro').classList.toggle('active', v==='registro');
+    document.getElementById('tab-login').classList.toggle('active', v==='login');
+    document.getElementById('tab-registro').classList.toggle('active', v==='registro');
+  };
+
+  function setErr(id, msg){ document.getElementById(id).textContent = msg || ''; }
+
+  // ── REGISTRO ───────────────────────────────────────────────
+  window.hacerRegistro = async function(){
+    const email = document.getElementById('reg-email').value.trim().toLowerCase();
+    const pass  = document.getElementById('reg-pass').value;
+    const pass2 = document.getElementById('reg-pass2').value;
+    const btn   = document.getElementById('btn-registro');
+
+    setErr('reg-err',''); setErr('reg-ok','');
+
+    if(!email || !pass){ setErr('reg-err','Completa correo y contraseña.'); return; }
+    if(pass.length < 6){ setErr('reg-err','La contraseña debe tener mínimo 6 caracteres.'); return; }
+    if(pass !== pass2){ setErr('reg-err','Las contraseñas no coinciden.'); return; }
+
+    btn.disabled = true; btn.textContent = 'Verificando...';
+
+    try {
+      // 1. Verificar que el email existe en la ficha administrativa de /alumnos
+      const q = query(collection(db, "alumnos"), where("email", "==", email));
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        setErr('reg-err','Este correo no está registrado en Deejya Academy. Contacta a recepción para que creen tu ficha primero.');
+        btn.disabled = false; btn.textContent = 'Crear cuenta';
+        return;
+      }
+      const alumnoDoc = snap.docs[0];
+
+      // 2. Crear la cuenta en Firebase Auth
+      btn.textContent = 'Creando cuenta...';
+      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+
+      // 3. Crear el puente alumnoAuth -> alumnoId real
+      await setDoc(doc(db, "alumnoAuth", cred.user.uid), {
+        uid: cred.user.uid,
+        email,
+        alumnoId: alumnoDoc.id,
+        creadoEn: serverTimestamp()
+      });
+
+      setErr('reg-ok','¡Cuenta creada! Redirigiendo a tu calendario...');
+      setTimeout(()=>{ window.location.href = 'calendario.html'; }, 1200);
+
+    } catch (e) {
+      console.error(e);
+      if (e.code === 'auth/email-already-in-use') {
+        setErr('reg-err','Ya existe una cuenta con este correo. Intenta iniciar sesión.');
+      } else if (e.code === 'auth/invalid-email') {
+        setErr('reg-err','El correo no es válido.');
+      } else {
+        setErr('reg-err','Ocurrió un error. Intenta de nuevo.');
+      }
+      btn.disabled = false; btn.textContent = 'Crear cuenta';
+    }
+  };
+
+  // ── LOGIN ──────────────────────────────────────────────────
+  window.hacerLogin = async function(){
+    const email = document.getElementById('login-email').value.trim().toLowerCase();
+    const pass  = document.getElementById('login-pass').value;
+    const btn   = document.getElementById('btn-login');
+
+    setErr('login-err','');
+    if(!email || !pass){ setErr('login-err','Completa correo y contraseña.'); return; }
+
+    btn.disabled = true; btn.textContent = 'Entrando...';
+
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, pass);
+      const puente = await getDoc(doc(db, "alumnoAuth", cred.user.uid));
+
+      if (!puente.exists()) {
+        setErr('login-err','Tu cuenta no está vinculada correctamente. Contacta a soporte.');
+        btn.disabled = false; btn.textContent = 'Entrar';
+        return;
+      }
+
+      window.location.href = 'calendario.html';
+
+    } catch (e) {
+      console.error(e);
+      if (e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found') {
+        setErr('login-err','Correo o contraseña incorrectos.');
+      } else {
+        setErr('login-err','Ocurrió un error. Intenta de nuevo.');
+      }
+      btn.disabled = false; btn.textContent = 'Entrar';
+    }
+  };
+
+  // Enter para enviar formularios
+  document.getElementById('login-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') window.hacerLogin(); });
+  document.getElementById('reg-pass2').addEventListener('keydown', e=>{ if(e.key==='Enter') window.hacerRegistro(); });
+
+  // Si ya hay sesión activa, saltar directo al calendario
+  onAuthStateChanged(auth, (user)=>{
+    if (user) window.location.href = 'calendario.html';
+  });
+</script>
+
+<script>
+  // Generar barras del ecualizador decorativo
+  const eq = document.getElementById('eq');
+  for(let i=0;i<28;i++){
+    const bar = document.createElement('span');
+    const h = 25 + Math.random()*70;
+    bar.style.setProperty('--h', h+'%');
+    bar.style.animationDelay = (Math.random()*1.5)+'s';
+    eq.appendChild(bar);
+  }
+</script>
+
+</body>
+</html>
