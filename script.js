@@ -247,6 +247,12 @@ function gAC(id){if(!id||id.indexOf('txt:')===0)return'-';var a=gA(id);return a?
 function gAI(id){if(!id||id.indexOf('txt:')===0)return'-';var a=gA(id);return a?(a.ingreso||'-'):'-'}
 function bdg(e){var m={Pagado:'bg',Pendiente:'by',Vencido:'br',Presente:'bg',Ausente:'br',Tardanza:'by'};return'<span class="bdg '+(m[e]||'bgr')+'">'+e+'</span>'}
 function dR(f){if(!f)return null;return Math.ceil((new Date(f)-new Date())/864e5)}
+var AVATAR_COLORS=['#c0392b','#2563eb','#16a34a','#ca8a04','#7c3aed','#db2777','#0891b2','#ea580c','#4338ca','#059669','#be123c','#0d9488'];
+function colorAvatarPorTelefono(tel){
+  var str=String(tel||'?'); var hash=0;
+  for(var i=0;i<str.length;i++){ hash=(hash*31+str.charCodeAt(i))>>>0; }
+  return AVATAR_COLORS[hash%AVATAR_COLORS.length];
+}
 function avEl(a,sz){sz=sz||30;if(a.foto)return'<img src="'+a.foto+'" style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;object-fit:cover">';var i=(a.nombre||'?').split(' ').slice(0,2).map(function(w){return w[0]}).join('').toUpperCase();return'<div class="avp" style="width:'+sz+'px;height:'+sz+'px;font-size:'+Math.floor(sz*.38)+'px">'+i+'</div>'}
 function fmtF(d){if(!d)return'';var p=d.split('-');return p[2]+'/'+p[1]}
 function updBadge(){var n=DB.cuotas.length;var b=document.getElementById('badge-al');if(b){if(n>0){b.textContent=n;b.style.display='inline'}else b.style.display='none'}}
@@ -2209,7 +2215,7 @@ window.renderInbox = function renderInbox(){
       var pendiente=c.ultimo.direccion==='entrante';
       var bgItem=activo?'':(pendiente?'background:#fff9e6;':'');
       return '<div class="inbox-item'+(activo?' active':'')+'" onclick="abrirChat(\''+c.telefono+'\')" style="position:relative;'+bgItem+'border-left:'+(pendiente&&!activo?'3px solid #e8c547':'3px solid transparent')+'">'
-        +'<div class="avp" style="flex-shrink:0">'+(c.nombre?c.nombre[0].toUpperCase():'?')+'</div>'
+        +'<div class="avp" style="flex-shrink:0;background:'+colorAvatarPorTelefono(c.telefono)+'">'+(c.nombre?c.nombre[0].toUpperCase():'?')+'</div>'
         +'<div style="flex:1;min-width:0">'
           +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">'
             +'<b style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(esFij?'&#128204; ':'')+(c.nombre||c.telefono)+'</b>'
