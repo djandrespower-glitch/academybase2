@@ -552,13 +552,37 @@ window.crearProfesor=async function(){
     closeM('m-acc-prof');
   }catch(e){
     if(e.code==='auth/email-already-in-use'){
-      if(confirm('Ese correo ya tiene una cuenta de acceso creada (su contraseña actual no cambia). ¿Quieres re-vincularlo como profesor de todas formas?')){
-        await fbSet('roles', mail, {rol:'profesor', nombre:nom});
-        closeM('m-acc-prof');
+      if(confirm('Ese correo ya tiene una cuenta creada. ¿Quieres restablecer su contraseña a la que acabas de escribir y vincularlo como profesor?')){
+        var ok=await resetearPasswordAdmin(mail, pwd);
+        if(ok){
+          await fbSet('roles', mail, {rol:'profesor', nombre:nom});
+          closeM('m-acc-prof');
+        } else {
+          err.textContent='No se pudo restablecer la contraseña. Intenta de nuevo.';
+        }
       } else { err.textContent='Ese correo ya tiene una cuenta creada.'; }
     } else { err.textContent='Error: '+e.message; }
   }
   btn.disabled=false; btn.textContent='Crear acceso';
+}
+
+// ── Restablece la contraseña de un usuario existente usando el backend admin ──
+// Solo funciona si quien está logueado ahora mismo en el CRM tiene rol 'admin'.
+async function resetearPasswordAdmin(email, newPassword){
+  try{
+    var idToken = await auth.currentUser.getIdToken();
+    var resp = await fetch('https://api.djacademy.com.co/admin-reset-password', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ idToken:idToken, email:email, newPassword:newPassword })
+    });
+    var data = await resp.json();
+    if(!data.ok){ alert('Error: '+(data.error||'no se pudo restablecer la contraseña')); return false; }
+    return true;
+  }catch(err){
+    alert('Error de conexion al restablecer contraseña: '+err.message);
+    return false;
+  }
 }
 
 window.openMAccAlu=function(){
@@ -579,10 +603,15 @@ window.crearAccesoAlumno=async function(){
     closeM('m-acc-alu');
   }catch(e){
     if(e.code==='auth/email-already-in-use'){
-      if(confirm('Ese correo ya tiene una cuenta de acceso creada (su contraseña actual no cambia). ¿Quieres re-vincularlo con este alumno de todas formas?')){
-        var alumno2=gA(alId);
-        await fbSet('roles', mail, {rol:'alumno', alumnoId:alId, nombre: alumno2?alumno2.nombre:''});
-        closeM('m-acc-alu');
+      if(confirm('Ese correo ya tiene una cuenta creada. ¿Quieres restablecer su contraseña a la que acabas de escribir y vincularlo con este alumno?')){
+        var ok=await resetearPasswordAdmin(mail, pwd);
+        if(ok){
+          var alumno2=gA(alId);
+          await fbSet('roles', mail, {rol:'alumno', alumnoId:alId, nombre: alumno2?alumno2.nombre:''});
+          closeM('m-acc-alu');
+        } else {
+          err.textContent='No se pudo restablecer la contraseña. Intenta de nuevo.';
+        }
       } else { err.textContent='Ese correo ya tiene una cuenta creada.'; }
     } else { err.textContent='Error: '+e.message; }
   }
