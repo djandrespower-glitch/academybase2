@@ -2064,7 +2064,7 @@ function ensureEmojiPicker(){
   wrap.insertBefore(abtn, btn.nextSibling);
   var finput=document.createElement('input');
   finput.type='file'; finput.id='inbox-file-input'; finput.style.display='none';
-  finput.accept='image/*,video/*,application/pdf';
+  finput.accept='image/*,video/*,audio/*,application/pdf';
   wrap.appendChild(finput);
   abtn.onclick=function(e){ e.stopPropagation(); finput.value=''; finput.click(); };
   finput.onchange=function(e){
@@ -2083,6 +2083,7 @@ window.insertEmoji=function(em){
 function tipoArchivoWA(mime){
   if(mime.indexOf('image/')===0) return 'image';
   if(mime.indexOf('video/')===0) return 'video';
+  if(mime.indexOf('audio/')===0) return 'audio';
   return 'document';
 }
 
@@ -2139,7 +2140,7 @@ window.renderInbox = function renderInbox(){
   } else {
     listEl.innerHTML=convs.map(function(c){
       var activo=c.telefono===_inboxTelActivo;
-      var previewMap={image:'📷 Foto', video:'🎥 Video', document:'📄 Documento', subiendo:'Subiendo archivo...'};
+      var previewMap={image:'📷 Foto', video:'🎥 Video', audio:'🎤 Audio', document:'📄 Documento', subiendo:'Subiendo archivo...'};
       var preview=previewMap[c.ultimo.tipo] || (c.ultimo.texto||'').slice(0,38);
       var esFav=!!_inboxFavoritos[c.telefono], esFij=!!_inboxFijados[c.telefono];
       return '<div class="inbox-item'+(activo?' active':'')+'" onclick="abrirChat(\''+c.telefono+'\')" style="position:relative">'
@@ -2208,6 +2209,8 @@ function renderChat(tel){
       contenido='<img src="'+m.archivoUrl+'" style="max-width:220px;border-radius:8px;display:block;cursor:zoom-in" onclick="window.zoomFoto(\''+m.archivoUrl+'\')">'+(m.texto?'<div style="margin-top:4px">'+m.texto+'</div>':'');
     } else if(m.tipo==='video' && m.archivoUrl){
       contenido='<video src="'+m.archivoUrl+'" controls style="max-width:220px;border-radius:8px;display:block"></video>'+(m.texto?'<div style="margin-top:4px">'+m.texto+'</div>':'');
+    } else if(m.tipo==='audio' && m.archivoUrl){
+      contenido='<audio src="'+m.archivoUrl+'" controls style="max-width:220px;display:block"></audio>';
     } else if(m.tipo==='document' && m.archivoUrl){
       contenido='<a href="'+m.archivoUrl+'" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;background:rgba(0,0,0,.08);border-radius:8px;padding:8px 10px"><span style="font-size:20px">&#128196;</span><span style="font-size:12px;word-break:break-all">'+(m.archivoNombre||'Documento')+'</span></a>';
     } else if(m.tipo==='subiendo'){
