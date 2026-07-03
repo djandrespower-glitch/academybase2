@@ -151,7 +151,10 @@ function poblarCatEgreso(sid){
 }
 
 // ── INIT APP ──────────────────────────────────────────────
+var _appYaInicializada=false;
 function initApp() {
+  if(_appYaInicializada) return;
+  _appYaInicializada=true;
   listenCol("cursos", "cursos", function() {
     if (DB.cursos.length === 0) {
       fbSet("cursos","djpro",{nombre:"Mezclas DJ Pro",niveles:["Essential","Pro","DJ Master Pro"],desc:"Modulo de mezcla DJ profesional",inicio:"",fin:""});
@@ -1506,6 +1509,15 @@ async function initEtapasDefault() {
   }
 }
 
+function ordenarCards(cards){
+  return cards.slice().sort(function(a,b){
+    var oa=(a.orden!==undefined&&a.orden!==null)?a.orden:9999999;
+    var ob=(b.orden!==undefined&&b.orden!==null)?b.orden:9999999;
+    if(oa!==ob) return oa-ob;
+    return getTsMs(a)-getTsMs(b);
+  });
+}
+
 function renderEmbudo() {
   var board = document.getElementById('embudo-board');
   if (!board) return;
@@ -1522,7 +1534,7 @@ function renderEmbudo() {
   }
 
   board.innerHTML = etapas.map(function(etapa) {
-    var cards = DB.prospectos.filter(function(p){ return p.etapaId === etapa.id; });
+    var cards = ordenarCards(DB.prospectos.filter(function(p){ return p.etapaId === etapa.id; }));
     var etapaVal = cards.reduce(function(s,p){ return s+(parseFloat(p.valor)||0); }, 0);
     return '<div class="embudo-col" data-etapa="'+etapa.id+'" '
       + 'ondragover="embudoDragOver(event)" '
@@ -1553,8 +1565,10 @@ function renderEmbudo() {
 }
 
 function renderEmbudoCard(p) {
-  return '<div class="embudo-card" draggable="true" style="position:relative" '
+  return '<div class="embudo-card" draggable="true" style="position:relative" data-id="'+p.id+'" '
     + 'ondragstart="embudoDragStart(event,\''+p.id+'\')" '
+    + 'ondragover="embudoCardDragOver(event)" '
+    + 'ondrop="embudoDropOnCard(event,\''+p.id+'\')" '
     + (p.telefono ? 'onclick="irInboxDesdeProspecto(\''+p.telefono+'\')"' : 'onclick="verProspecto(\''+p.id+'\')"') + '>'
     + '<span onclick="event.stopPropagation();verProspecto(\''+p.id+'\')" title="Editar datos" style="position:absolute;top:6px;right:6px;font-size:12px;color:#aaa;cursor:pointer;padding:2px 4px">&#9998;</span>'
     + '<div style="font-weight:600;font-size:13px;margin-bottom:3px;padding-right:16px">'+(p.nombre||'Sin nombre')+'</div>'
@@ -1570,7 +1584,7 @@ window.irInboxDesdeProspecto=function(tel){
   setTimeout(function(){ window.abrirChat(tel); }, 150);
 };
 
-// ─── DRAG & DROP ──────────────────────────────────────────────
+// ─── DRAG & DROP (con reordenamiento manual dentro y entre columnas) ────
 window.embudoDragStart = function(e, id) {
   _embudoDragId = id;
   e.dataTransfer.effectAllowed = 'move';
@@ -1579,12 +1593,44 @@ window.embudoDragOver = function(e) {
   e.preventDefault();
   e.currentTarget.classList.add('drag-over');
 };
+window.embudoCardDragOver = function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+};
+
+async function reordenarEtapa(etapaId, idsEnOrden){
+  for(var i=0;i<idsEnOrden.length;i++){
+    var p=DB.prospectos.find(function(x){return x.id===idsEnOrden[i];});
+    if(!p) continue;
+    var data={ orden:i };
+    if(p.etapaId!==etapaId) data.etapaId=etapaId;
+    await fbUpd('prospectos', idsEnOrden[i], data);
+  }
+}
+
 window.embudoDrop = async function(e, etapaId) {
   e.preventDefault();
   document.querySelectorAll('.embudo-col').forEach(function(c){ c.classList.remove('drag-over'); });
   if (!_embudoDragId) return;
-  await fbUpd('prospectos', _embudoDragId, { etapaId: etapaId });
-  _embudoDragId = null;
+  var dragId=_embudoDragId; _embudoDragId=null;
+  var destino=ordenarCards(DB.prospectos.filter(function(p){ return p.etapaId===etapaId && p.id!==dragId; })).map(function(p){return p.id;});
+  destino.push(dragId);
+  await reordenarEtapa(etapaId, destino);
+};
+
+window.embudoDropOnCard = async function(e, targetId) {
+  e.preventDefault();
+  e.stopPropagation();
+  document.querySelectorAll('.embudo-col').forEach(function(c){ c.classList.remove('drag-over'); });
+  if (!_embudoDragId || _embudoDragId===targetId) { _embudoDragId=null; return; }
+  var dragId=_embudoDragId; _embudoDragId=null;
+  var target=DB.prospectos.find(function(p){return p.id===targetId;});
+  if(!target) return;
+  var etapaId=target.etapaId;
+  var destino=ordenarCards(DB.prospectos.filter(function(p){ return p.etapaId===etapaId && p.id!==dragId; })).map(function(p){return p.id;});
+  var idx=destino.indexOf(targetId);
+  destino.splice(idx, 0, dragId);
+  await reordenarEtapa(etapaId, destino);
 };
 
 // ─── CRUD PROSPECTOS ──────────────────────────────────────────
@@ -1875,6 +1921,15 @@ window.convertirLeadProspecto=async function(id){
 // ══════════════════════════════════════════════════════════════
 var _tplEditId=null;
 var _tplImagenUrl=null;
+var _tplImagenTipo=null;
+
+var _plantillasAbiertas=new Set();
+window.togglePlantillaCard=function(id,ev){
+  if(ev) ev.stopPropagation();
+  if(_plantillasAbiertas.has(id)) _plantillasAbiertas.delete(id);
+  else _plantillasAbiertas.add(id);
+  renderPlantillas();
+};
 
 window.renderPlantillas = function renderPlantillas(){
   var el=document.getElementById('tpl-lista'); if(!el) return;
@@ -1888,15 +1943,36 @@ window.renderPlantillas = function renderPlantillas(){
   el.innerHTML=Object.keys(grupos).sort().map(function(cat){
     return '<div style="margin-bottom:18px"><div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">'+cat+'</div>'
       +grupos[cat].map(function(t){
-        return '<div class="cc" style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">'
-          +(t.imagenUrl?'<img src="'+t.imagenUrl+'" style="width:48px;height:48px;object-fit:cover;border-radius:8px;flex-shrink:0">':'')
-          +'<div style="flex:1;min-width:0"><b style="font-size:13px">'+t.titulo+'</b>'
-          +'<div style="font-size:12px;color:#666;margin-top:4px;white-space:pre-wrap">'+t.texto+'</div></div>'
-          +'<div style="display:flex;gap:6px;flex-shrink:0">'
-            +'<button class="btn bo bsm" onclick="copiarPlantilla(\''+t.id+'\',this)">&#128203; Copiar</button>'
-            +'<button class="btn bo bsm" onclick="editPlantilla(\''+t.id+'\')">Editar</button>'
-            +'<button class="btn bd bsm" onclick="delPlantilla(\''+t.id+'\')">X</button>'
+        var abierta=_plantillasAbiertas.has(t.id);
+        var esVideo=t.archivoTipo==='video';
+        var miniatura=t.imagenUrl
+          ? (esVideo
+              ? '<div style="width:40px;height:40px;border-radius:8px;flex-shrink:0;background:#1a1a1a;display:flex;align-items:center;justify-content:center;font-size:16px">&#9654;</div>'
+              : '<img src="'+t.imagenUrl+'" style="width:40px;height:40px;object-fit:cover;border-radius:8px;flex-shrink:0">')
+          : '';
+        return '<div class="cc" style="padding:0;overflow:hidden">'
+          +'<div onclick="togglePlantillaCard(\''+t.id+'\')" style="display:flex;align-items:center;gap:10px;padding:12px 15px;cursor:pointer">'
+            +miniatura
+            +'<div style="flex:1;min-width:0"><b style="font-size:13px">'+t.titulo+'</b>'
+              +(!abierta?'<div style="font-size:11px;color:#999;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+t.texto.slice(0,70)+'</div>':'')
+            +'</div>'
+            +'<span style="font-size:11px;color:#aaa;flex-shrink:0;transition:transform .15s;transform:rotate('+(abierta?'90deg':'0deg')+')">&#9656;</span>'
           +'</div>'
+          +(abierta
+            ? '<div style="padding:0 15px 15px 15px">'
+                +(t.imagenUrl
+                    ? (esVideo
+                        ? '<video src="'+t.imagenUrl+'" controls style="max-width:220px;border-radius:8px;display:block;margin-bottom:8px"></video>'
+                        : '<img src="'+t.imagenUrl+'" style="max-width:220px;border-radius:8px;display:block;margin-bottom:8px">')
+                    : '')
+                +'<div style="font-size:12px;color:#666;white-space:pre-wrap;margin-bottom:10px">'+t.texto+'</div>'
+                +'<div style="display:flex;gap:6px">'
+                  +'<button class="btn bo bsm" onclick="event.stopPropagation();copiarPlantilla(\''+t.id+'\',this)">&#128203; Copiar</button>'
+                  +'<button class="btn bo bsm" onclick="event.stopPropagation();editPlantilla(\''+t.id+'\')">Editar</button>'
+                  +'<button class="btn bd bsm" onclick="event.stopPropagation();delPlantilla(\''+t.id+'\')">X</button>'
+                +'</div>'
+              +'</div>'
+            : '')
         +'</div>';
       }).join('')
     +'</div>';
@@ -1909,35 +1985,47 @@ function ensurePlantillaImagenUI(){
   var wrap=document.createElement('div');
   wrap.id='mt-imagen-wrap';
   wrap.style.cssText='margin-top:12px';
-  wrap.innerHTML='<label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px">Imagen (opcional, maximo 10MB)</label>'
+  wrap.innerHTML='<label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px">Imagen o video (opcional, maximo 10MB)</label>'
     +'<div id="mt-imagen-preview-wrap" style="display:none;margin-bottom:8px">'
-      +'<img id="mt-imagen-preview" style="max-width:120px;max-height:120px;border-radius:8px;display:block;margin-bottom:6px">'
-      +'<button type="button" id="mt-imagen-quitar" class="btn bd bsm">Quitar imagen</button>'
+      +'<img id="mt-imagen-preview" style="max-width:120px;max-height:120px;border-radius:8px;display:none;margin-bottom:6px">'
+      +'<video id="mt-video-preview" controls style="max-width:180px;max-height:120px;border-radius:8px;display:none;margin-bottom:6px"></video>'
+      +'<button type="button" id="mt-imagen-quitar" class="btn bd bsm">Quitar archivo</button>'
     +'</div>'
-    +'<input type="file" id="mt-imagen-input" accept="image/*" style="font-size:12px">';
+    +'<input type="file" id="mt-imagen-input" accept="image/*,video/*" style="font-size:12px">';
   texto.parentNode.insertBefore(wrap, texto.nextSibling);
   document.getElementById('mt-imagen-input').addEventListener('change', async function(e){
     var f=e.target.files[0]; if(!f) return;
-    if(f.size > MAX_ARCHIVO_BYTES){ alert('La imagen pesa '+(f.size/1024/1024).toFixed(1)+' MB. Maximo 10 MB.'); return; }
+    if(f.size > MAX_ARCHIVO_BYTES){ alert('El archivo pesa '+(f.size/1024/1024).toFixed(1)+' MB. Maximo 10 MB.'); return; }
     try{
       var fd=new FormData(); fd.append('archivo', f); fd.append('telefono','plantillas');
       var resp=await fetch('https://api.djacademy.com.co/upload-media', { method:'POST', body:fd });
       var data=await resp.json();
-      if(!data.ok) throw new Error(data.error||'Error subiendo imagen');
+      if(!data.ok) throw new Error(data.error||'Error subiendo el archivo');
       _tplImagenUrl=data.url;
-      document.getElementById('mt-imagen-preview').src=data.url;
-      document.getElementById('mt-imagen-preview-wrap').style.display='block';
-    }catch(err){ alert('No se pudo subir la imagen: '+err.message); }
+      _tplImagenTipo=f.type.indexOf('video/')===0?'video':'image';
+      mostrarPreviewPlantilla(data.url,_tplImagenTipo);
+    }catch(err){ alert('No se pudo subir el archivo: '+err.message); }
   });
   document.getElementById('mt-imagen-quitar').addEventListener('click', function(){
-    _tplImagenUrl=null;
+    _tplImagenUrl=null; _tplImagenTipo=null;
     document.getElementById('mt-imagen-preview-wrap').style.display='none';
     document.getElementById('mt-imagen-input').value='';
   });
 }
 
+function mostrarPreviewPlantilla(url,tipo){
+  var imgEl=document.getElementById('mt-imagen-preview');
+  var vidEl=document.getElementById('mt-video-preview');
+  if(tipo==='video'){
+    vidEl.src=url; vidEl.style.display='block'; imgEl.style.display='none';
+  } else {
+    imgEl.src=url; imgEl.style.display='block'; vidEl.style.display='none'; vidEl.src='';
+  }
+  document.getElementById('mt-imagen-preview-wrap').style.display='block';
+}
+
 window.nuevaPlantilla=function(){
-  _tplEditId=null; _tplImagenUrl=null;
+  _tplEditId=null; _tplImagenUrl=null; _tplImagenTipo=null;
   document.getElementById('mt-tit').textContent='Nueva plantilla';
   ['mt-titulo','mt-cat','mt-texto'].forEach(function(id){document.getElementById(id).value=''});
   document.getElementById('mt-del').style.display='none';
@@ -1948,7 +2036,7 @@ window.nuevaPlantilla=function(){
 };
 window.editPlantilla=function(id){
   var t=DB.plantillas.find(function(x){return x.id===id}); if(!t) return;
-  _tplEditId=id; _tplImagenUrl=t.imagenUrl||null;
+  _tplEditId=id; _tplImagenUrl=t.imagenUrl||null; _tplImagenTipo=t.archivoTipo||(t.imagenUrl?'image':null);
   document.getElementById('mt-tit').textContent='Editar plantilla';
   document.getElementById('mt-titulo').value=t.titulo||'';
   document.getElementById('mt-cat').value=t.categoria||'';
@@ -1957,18 +2045,14 @@ window.editPlantilla=function(id){
   openM('m-plantilla');
   ensurePlantillaImagenUI();
   document.getElementById('mt-imagen-input').value='';
-  if(t.imagenUrl){
-    document.getElementById('mt-imagen-preview').src=t.imagenUrl;
-    document.getElementById('mt-imagen-preview-wrap').style.display='block';
-  } else {
-    document.getElementById('mt-imagen-preview-wrap').style.display='none';
-  }
+  if(t.imagenUrl){ mostrarPreviewPlantilla(t.imagenUrl,_tplImagenTipo); }
+  else { document.getElementById('mt-imagen-preview-wrap').style.display='none'; }
 };
 window.savePlantilla=async function(){
   var tit=document.getElementById('mt-titulo').value.trim();
   var txt=document.getElementById('mt-texto').value.trim();
   if(!tit||!txt){ alert('Titulo y texto son requeridos'); return; }
-  var data={ titulo:tit, categoria:document.getElementById('mt-cat').value.trim()||'General', texto:txt, imagenUrl:_tplImagenUrl||null };
+  var data={ titulo:tit, categoria:document.getElementById('mt-cat').value.trim()||'General', texto:txt, imagenUrl:_tplImagenUrl||null, archivoTipo:_tplImagenUrl?(_tplImagenTipo||'image'):null };
   if(_tplEditId){ await fbUpd('plantillas',_tplEditId,data); } else { await fbAdd('plantillas',data); }
   closeM('m-plantilla');
 };
@@ -1993,6 +2077,7 @@ function poblarSelectPlantillasInbox(){
   if(dl){ var cats=Array.from(new Set(DB.plantillas.map(function(t){return t.categoria}).filter(Boolean))); dl.innerHTML=cats.map(function(c){return '<option value="'+c+'">'}).join(''); }
 }
 var _inboxImagenPlantillaStaged=null;
+var _inboxImagenPlantillaStagedTipo=null;
 
 function ensureImagenStagePreview(){
   var wrap=document.getElementById('inbox-reply-wrap');
@@ -2002,17 +2087,20 @@ function ensureImagenStagePreview(){
     if(existing) existing.remove();
     return;
   }
-  if(existing){ existing.querySelector('img').src=_inboxImagenPlantillaStaged; return; }
+  if(existing) existing.remove();
+  var esVideo=_inboxImagenPlantillaStagedTipo==='video';
   var box=document.createElement('div');
   box.id='inbox-stage-imagen';
   box.style.cssText='position:absolute;bottom:56px;right:0;background:#1e1e1e;border:1px solid #333;border-radius:10px;padding:8px;display:flex;align-items:center;gap:8px;z-index:60;box-shadow:0 4px 16px rgba(0,0,0,.4)';
-  box.innerHTML='<img src="'+_inboxImagenPlantillaStaged+'" style="width:44px;height:44px;object-fit:cover;border-radius:6px">'
-    +'<span style="font-size:11px;color:#ccc">Imagen de la plantilla lista para enviar</span>'
+  box.innerHTML=(esVideo
+      ? '<video src="'+_inboxImagenPlantillaStaged+'" style="width:44px;height:44px;object-fit:cover;border-radius:6px"></video>'
+      : '<img src="'+_inboxImagenPlantillaStaged+'" style="width:44px;height:44px;object-fit:cover;border-radius:6px">')
+    +'<span style="font-size:11px;color:#ccc">'+(esVideo?'Video':'Imagen')+' de la plantilla lista para enviar</span>'
     +'<button id="inbox-stage-imagen-quitar" style="background:none;border:none;color:#e57373;cursor:pointer;font-size:16px;line-height:1;padding:0 4px">&times;</button>';
   wrap.style.position=wrap.style.position||'relative';
   wrap.appendChild(box);
   document.getElementById('inbox-stage-imagen-quitar').addEventListener('click', function(){
-    _inboxImagenPlantillaStaged=null;
+    _inboxImagenPlantillaStaged=null; _inboxImagenPlantillaStagedTipo=null;
     ensureImagenStagePreview();
   });
 }
@@ -2023,6 +2111,7 @@ window.usarPlantillaEnChat=function(){
   var t=DB.plantillas.find(function(x){return x.id===id}); if(!t) return;
   document.getElementById('inbox-input').value=t.texto||'';
   _inboxImagenPlantillaStaged=t.imagenUrl||null;
+  _inboxImagenPlantillaStagedTipo=t.archivoTipo||(t.imagenUrl?'image':null);
   ensureImagenStagePreview();
   sel.value='';
   document.getElementById('inbox-input').focus();
@@ -2166,15 +2255,24 @@ window.reabrirConversacion=async function(tel){
 };
 
 // ── Reapertura automática SOLO ante mensajes entrantes genuinamente nuevos ──
-// Usa docChanges de Firestore en vez de reescanear todo el historial cada vez.
-// La primera carga (snapshot inicial) se ignora a propósito: Firestore reporta
-// TODOS los documentos existentes como "added" la primera vez que el listener
-// se conecta, y eso NO son mensajes nuevos.
+// Firestore a veces entrega DOS snapshots al conectar: uno desde cache local
+// (puede venir incompleto) y otro ya confirmado por el servidor. Ignorar solo
+// "el primer callback" NO es suficiente — si el primero es el de cache y el
+// segundo es el confirmado con el historial completo, ese segundo se procesa
+// como si cada mensaje viejo fuera nuevo, reabriendo todo. La solucion real es
+// esperar a que metadata.fromCache sea false antes de fijar la linea base.
+var _reaperturaListenerIniciado=false;
 function iniciarListenerReaperturaAutomatica(){
-  var primeraCarga=true;
+  if(_reaperturaListenerIniciado) return;
+  _reaperturaListenerIniciado=true;
+  var lineaBaseEstablecida=false;
   var qEntrantes=query(collection(db,'whatsapp_mensajes'), where('direccion','==','entrante'));
   onSnapshot(qEntrantes, function(snap){
-    if(primeraCarga){ primeraCarga=false; return; }
+    if(!lineaBaseEstablecida){
+      if(snap.metadata.fromCache) return; // esperar confirmacion real del servidor
+      lineaBaseEstablecida=true;
+      return; // esta carga (ya confirmada) es el historial existente, no son mensajes nuevos
+    }
     snap.docChanges().forEach(function(change){
       if(change.type!=='added') return;
       var m=change.doc.data();
@@ -2328,7 +2426,7 @@ window.renderInbox = function renderInbox(){
 };
 
 window.abrirChat=function(tel){
-  if(_inboxTelActivo!==tel){ _inboxImagenPlantillaStaged=null; }
+  if(_inboxTelActivo!==tel){ _inboxImagenPlantillaStaged=null; _inboxImagenPlantillaStagedTipo=null; }
   _inboxTelActivo=tel;
   DB.whatsapp_mensajes.filter(function(m){return m.telefono===tel && m.direccion==='entrante' && !m.leido}).forEach(function(m){ fbUpd('whatsapp_mensajes', m.id, {leido:true}); });
   renderInbox();
@@ -2444,10 +2542,11 @@ window.enviarInboxMsg=async function(){
   var txt=ta.value.trim();
   if(_inboxImagenPlantillaStaged){
     var urlImg=_inboxImagenPlantillaStaged;
-    _inboxImagenPlantillaStaged=null;
+    var tipoImg=_inboxImagenPlantillaStagedTipo||'image';
+    _inboxImagenPlantillaStaged=null; _inboxImagenPlantillaStagedTipo=null;
     ensureImagenStagePreview();
     ta.value='';
-    await fbAdd('whatsapp_mensajes', { telefono:_inboxTelActivo, direccion:'saliente', texto:txt, tipo:'image', archivoUrl:urlImg, estado:'pendiente', leido:true });
+    await fbAdd('whatsapp_mensajes', { telefono:_inboxTelActivo, direccion:'saliente', texto:txt, tipo:tipoImg, archivoUrl:urlImg, estado:'pendiente', leido:true });
     return;
   }
   if(!txt) return;
