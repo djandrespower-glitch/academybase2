@@ -182,7 +182,11 @@ function initApp() {
     renderInboxBadge();
     DB.whatsapp_mensajes.filter(function(m){ return m.direccion==='entrante'; }).forEach(function(m){
       autoCrearProspectoSiNuevo(m);
-      if(m.telefono && estaArchivada(m.telefono)) window.reabrirConversacion(m.telefono);
+      if(m.telefono && estaArchivada(m.telefono)){
+        var archDoc=DB.inbox_archivados.find(function(a){return a.id===m.telefono;});
+        var archivadoTs=(archDoc&&archDoc.fecha)?new Date(archDoc.fecha).getTime():0;
+        if(getTsMs(m) > archivadoTs) window.reabrirConversacion(m.telefono);
+      }
     });
     if(document.getElementById('page-inbox').classList.contains('active')) renderInbox();
   });
