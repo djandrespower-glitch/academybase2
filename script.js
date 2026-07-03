@@ -1994,17 +1994,38 @@ function poblarSelectPlantillasInbox(){
   var dl=document.getElementById('dl-cat-tpl');
   if(dl){ var cats=Array.from(new Set(DB.plantillas.map(function(t){return t.categoria}).filter(Boolean))); dl.innerHTML=cats.map(function(c){return '<option value="'+c+'">'}).join(''); }
 }
-window.usarPlantillaEnChat=async function(){
+var _inboxImagenPlantillaStaged=null;
+
+function ensureImagenStagePreview(){
+  var wrap=document.getElementById('inbox-reply-wrap');
+  if(!wrap) return;
+  var existing=document.getElementById('inbox-stage-imagen');
+  if(!_inboxImagenPlantillaStaged){
+    if(existing) existing.remove();
+    return;
+  }
+  if(existing){ existing.querySelector('img').src=_inboxImagenPlantillaStaged; return; }
+  var box=document.createElement('div');
+  box.id='inbox-stage-imagen';
+  box.style.cssText='position:absolute;bottom:56px;right:0;background:#1e1e1e;border:1px solid #333;border-radius:10px;padding:8px;display:flex;align-items:center;gap:8px;z-index:60;box-shadow:0 4px 16px rgba(0,0,0,.4)';
+  box.innerHTML='<img src="'+_inboxImagenPlantillaStaged+'" style="width:44px;height:44px;object-fit:cover;border-radius:6px">'
+    +'<span style="font-size:11px;color:#ccc">Imagen de la plantilla lista para enviar</span>'
+    +'<button id="inbox-stage-imagen-quitar" style="background:none;border:none;color:#e57373;cursor:pointer;font-size:16px;line-height:1;padding:0 4px">&times;</button>';
+  wrap.style.position=wrap.style.position||'relative';
+  wrap.appendChild(box);
+  document.getElementById('inbox-stage-imagen-quitar').addEventListener('click', function(){
+    _inboxImagenPlantillaStaged=null;
+    ensureImagenStagePreview();
+  });
+}
+
+window.usarPlantillaEnChat=function(){
   var sel=document.getElementById('inbox-tpl-sel');
   var id=sel.value; if(!id) return;
   var t=DB.plantillas.find(function(x){return x.id===id}); if(!t) return;
-  if(t.imagenUrl){
-    if(!_inboxTelActivo){ alert('Selecciona una conversacion primero.'); sel.value=''; return; }
-    await fbAdd('whatsapp_mensajes', { telefono:_inboxTelActivo, direccion:'saliente', texto:t.texto||'', tipo:'image', archivoUrl:t.imagenUrl, estado:'pendiente', leido:true });
-    sel.value='';
-    return;
-  }
-  document.getElementById('inbox-input').value=t.texto;
+  document.getElementById('inbox-input').value=t.texto||'';
+  _inboxImagenPlantillaStaged=t.imagenUrl||null;
+  ensureImagenStagePreview();
   sel.value='';
   document.getElementById('inbox-input').focus();
 };
@@ -2240,6 +2261,7 @@ window.renderInbox = function renderInbox(){
 };
 
 window.abrirChat=function(tel){
+  if(_inboxTelActivo!==tel){ _inboxImagenPlantillaStaged=null; }
   _inboxTelActivo=tel;
   DB.whatsapp_mensajes.filter(function(m){return m.telefono===tel && m.direccion==='entrante' && !m.leido}).forEach(function(m){ fbUpd('whatsapp_mensajes', m.id, {leido:true}); });
   renderInbox();
@@ -2346,12 +2368,21 @@ function renderChat(tel){
   }).join('');
   wrap.scrollTop=wrap.scrollHeight;
   var rEl=document.getElementById('inbox-reply-wrap'); if(rEl) rEl.style.display=tel?'flex':'none';
+  ensureImagenStagePreview();
 }
 
 window.enviarInboxMsg=async function(){
   if(!_inboxTelActivo) return;
   var ta=document.getElementById('inbox-input');
   var txt=ta.value.trim();
+  if(_inboxImagenPlantillaStaged){
+    var urlImg=_inboxImagenPlantillaStaged;
+    _inboxImagenPlantillaStaged=null;
+    ensureImagenStagePreview();
+    ta.value='';
+    await fbAdd('whatsapp_mensajes', { telefono:_inboxTelActivo, direccion:'saliente', texto:txt, tipo:'image', archivoUrl:urlImg, estado:'pendiente', leido:true });
+    return;
+  }
   if(!txt) return;
   ta.value='';
   await fbAdd('whatsapp_mensajes', { telefono:_inboxTelActivo, direccion:'saliente', texto:txt, estado:'pendiente', leido:true });
