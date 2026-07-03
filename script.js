@@ -6,7 +6,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/fireba
 import {
   getFirestore, collection, doc, getDoc,
   addDoc, setDoc, updateDoc, deleteDoc,
-  onSnapshot, query, orderBy, serverTimestamp
+  onSnapshot, query, orderBy, where, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged
@@ -180,16 +180,10 @@ function initApp() {
   listenCol('plantillas',    'plantillas',    function(){ poblarSelectPlantillasInbox(); if(document.getElementById('page-plantillas').classList.contains('active')) renderPlantillas(); });
   listenCol('whatsapp_mensajes','whatsapp_mensajes', function(){
     renderInboxBadge();
-    DB.whatsapp_mensajes.filter(function(m){ return m.direccion==='entrante'; }).forEach(function(m){
-      autoCrearProspectoSiNuevo(m);
-      if(m.telefono && estaArchivada(m.telefono)){
-        var archDoc=DB.inbox_archivados.find(function(a){return a.id===m.telefono;});
-        var archivadoTs=(archDoc&&archDoc.fecha)?new Date(archDoc.fecha).getTime():0;
-        if(getTsMs(m) > archivadoTs) window.reabrirConversacion(m.telefono);
-      }
-    });
+    DB.whatsapp_mensajes.filter(function(m){ return m.direccion==='entrante'; }).forEach(autoCrearProspectoSiNuevo);
     if(document.getElementById('page-inbox').classList.contains('active')) renderInbox();
   });
+  iniciarListenerReaperturaAutomatica();
   listenCol('inbox_archivados','inbox_archivados', function(){
     if(document.getElementById('page-inbox').classList.contains('active')) renderInbox();
   });
@@ -2085,6 +2079,16 @@ function ensureInboxSearchBox(){
       +'<button id="inbox-filtro-fav" class="inbox-filtro-btn" style="flex:1;padding:5px;border-radius:7px;border:1px solid #333;background:transparent;color:#aaa;font-size:11px;cursor:pointer">&#9733; Favoritos</button>'
       +'<button id="inbox-filtro-fij" class="inbox-filtro-btn" style="flex:1;padding:5px;border-radius:7px;border:1px solid #333;background:transparent;color:#aaa;font-size:11px;cursor:pointer">&#128204; Fijados</button>'
       +'<button id="inbox-filtro-arch" class="inbox-filtro-btn" style="flex:1;padding:5px;border-radius:7px;border:1px solid #333;background:transparent;color:#aaa;font-size:11px;cursor:pointer">&#128230; Cerrados</button>'
+    +'</div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">'
+      +'<button id="inbox-modo-seleccion-btn" style="background:none;border:none;color:#888;font-size:11px;cursor:pointer;padding:2px 0">&#9745; Seleccionar varios</button>'
+    +'</div>'
+    +'<div id="inbox-seleccion-bar" style="display:none;align-items:center;justify-content:space-between;margin-top:8px;padding:8px 10px;background:#2a2418;border-radius:8px;border:1px solid #4a4030">'
+      +'<span id="inbox-seleccion-count" style="font-size:12px;color:#f5efdc;font-weight:600">0 seleccionados</span>'
+      +'<div style="display:flex;gap:6px">'
+        +'<button id="inbox-seleccion-cerrar" style="padding:5px 10px;border-radius:6px;border:none;background:#e8c547;color:#1a1a2e;font-size:11px;font-weight:600;cursor:pointer">Cerrar seleccionados</button>'
+        +'<button id="inbox-seleccion-cancelar" style="padding:5px 10px;border-radius:6px;border:1px solid #555;background:transparent;color:#aaa;font-size:11px;cursor:pointer">Cancelar</button>'
+      +'</div>'
     +'</div>';
   listEl.parentNode.insertBefore(box, listEl);
   document.getElementById('inbox-search-input').addEventListener('input', function(e){
@@ -2102,8 +2106,37 @@ function ensureInboxSearchBox(){
       renderInbox();
     });
   });
+  document.getElementById('inbox-modo-seleccion-btn').addEventListener('click', function(){
+    _inboxModoSeleccion=!_inboxModoSeleccion;
+    _inboxSeleccionados.clear();
+    renderInbox();
+  });
+  document.getElementById('inbox-seleccion-cancelar').addEventListener('click', function(){
+    _inboxModoSeleccion=false;
+    _inboxSeleccionados.clear();
+    renderInbox();
+  });
+  document.getElementById('inbox-seleccion-cerrar').addEventListener('click', async function(){
+    if(!_inboxSeleccionados.size) return;
+    var n=_inboxSeleccionados.size;
+    confirmDel('Cerrar '+n+' conversacion'+(n===1?'':'es')+' seleccionada'+(n===1?'':'s')+'?', async function(){
+      await window.cerrarConversaciones(Array.from(_inboxSeleccionados));
+      _inboxModoSeleccion=false;
+      _inboxSeleccionados.clear();
+      renderInbox();
+    });
+  });
 }
 window._inboxFiltroActivo='inbox-filtro-todos';
+var _inboxModoSeleccion=false;
+var _inboxSeleccionados=new Set();
+
+window.toggleSeleccionChat=function(tel,ev){
+  if(ev) ev.stopPropagation();
+  if(_inboxSeleccionados.has(tel)) _inboxSeleccionados.delete(tel);
+  else _inboxSeleccionados.add(tel);
+  renderInbox();
+};
 
 window.toggleFavoritoChat=function(tel,ev){
   if(ev) ev.stopPropagation();
@@ -2124,10 +2157,31 @@ window.cerrarConversacion=async function(tel){
   if(!tel) return;
   await fbSet('inbox_archivados', tel, { archivada:true, fecha:new Date().toISOString() });
 };
+window.cerrarConversaciones=async function(tels){
+  for(var i=0;i<tels.length;i++){ await window.cerrarConversacion(tels[i]); }
+};
 window.reabrirConversacion=async function(tel){
   if(!tel) return;
   await fbSet('inbox_archivados', tel, { archivada:false, fecha:new Date().toISOString() });
 };
+
+// ── Reapertura automática SOLO ante mensajes entrantes genuinamente nuevos ──
+// Usa docChanges de Firestore en vez de reescanear todo el historial cada vez.
+// La primera carga (snapshot inicial) se ignora a propósito: Firestore reporta
+// TODOS los documentos existentes como "added" la primera vez que el listener
+// se conecta, y eso NO son mensajes nuevos.
+function iniciarListenerReaperturaAutomatica(){
+  var primeraCarga=true;
+  var qEntrantes=query(collection(db,'whatsapp_mensajes'), where('direccion','==','entrante'));
+  onSnapshot(qEntrantes, function(snap){
+    if(primeraCarga){ primeraCarga=false; return; }
+    snap.docChanges().forEach(function(change){
+      if(change.type!=='added') return;
+      var m=change.doc.data();
+      if(m.telefono && estaArchivada(m.telefono)) window.reabrirConversacion(m.telefono);
+    });
+  }, function(err){ console.warn('Error en listener de reapertura automatica:', err); });
+}
 
 var EMOJIS_INBOX=['😀','😂','😍','👍','🙏','🎉','🔥','❤️','😊','🙌','✅','📅','🎵','🎧','💰','📍','⏰','😅','🤔','👏','🎧','🕺','💬','📞'];
 var MAX_ARCHIVO_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -2239,7 +2293,10 @@ window.renderInbox = function renderInbox(){
       var esFav=!!_inboxFavoritos[c.telefono], esFij=!!_inboxFijados[c.telefono];
       var pendiente=c.ultimo.direccion==='entrante';
       var bgItem=activo?'':(pendiente?'background:#fff9e6;':'');
-      return '<div class="inbox-item'+(activo?' active':'')+'" onclick="abrirChat(\''+c.telefono+'\')" style="position:relative;'+bgItem+'border-left:'+(pendiente&&!activo?'3px solid #e8c547':'3px solid transparent')+'">'
+      var seleccionado=_inboxSeleccionados.has(c.telefono);
+      var clickAttr=_inboxModoSeleccion?'onclick="window.toggleSeleccionChat(\''+c.telefono+'\',event)"':'onclick="abrirChat(\''+c.telefono+'\')"';
+      return '<div class="inbox-item'+(activo?' active':'')+'" '+clickAttr+' style="position:relative;'+bgItem+'border-left:'+(pendiente&&!activo?'3px solid #e8c547':'3px solid transparent')+'">'
+        +(_inboxModoSeleccion?'<input type="checkbox" '+(seleccionado?'checked':'')+' onclick="window.toggleSeleccionChat(\''+c.telefono+'\',event)" style="width:16px;height:16px;flex-shrink:0;cursor:pointer">':'')
         +'<div class="avp" style="flex-shrink:0;background:'+colorAvatarPorTelefono(c.telefono)+'">'+(c.nombre?c.nombre[0].toUpperCase():'?')+'</div>'
         +'<div style="flex:1;min-width:0">'
           +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">'
@@ -2251,11 +2308,17 @@ window.renderInbox = function renderInbox(){
             +(c.noLeidos?'<span class="bdg br" style="flex-shrink:0">'+c.noLeidos+'</span>':'')
           +'</div>'
         +'</div>'
-        +'<span onclick="window.toggleFavoritoChat(\''+c.telefono+'\',event)" title="Favorito" style="cursor:pointer;font-size:14px;color:'+(esFav?'#e8c547':'#444')+';flex-shrink:0">&#9733;</span>'
-        +'<span onclick="window.toggleFijarChat(\''+c.telefono+'\',event)" title="Fijar" style="cursor:pointer;font-size:13px;color:'+(esFij?'#e8c547':'#444')+';flex-shrink:0">&#128204;</span>'
+        +(_inboxModoSeleccion?'':'<span onclick="window.toggleFavoritoChat(\''+c.telefono+'\',event)" title="Favorito" style="cursor:pointer;font-size:14px;color:'+(esFav?'#e8c547':'#444')+';flex-shrink:0">&#9733;</span>'
+        +'<span onclick="window.toggleFijarChat(\''+c.telefono+'\',event)" title="Fijar" style="cursor:pointer;font-size:13px;color:'+(esFij?'#e8c547':'#444')+';flex-shrink:0">&#128204;</span>')
       +'</div>';
     }).join('');
   }
+  var selBar=document.getElementById('inbox-seleccion-bar');
+  var selBtn=document.getElementById('inbox-modo-seleccion-btn');
+  if(selBar){ selBar.style.display=_inboxModoSeleccion?'flex':'none'; }
+  if(selBtn){ selBtn.style.display=_inboxModoSeleccion?'none':'block'; }
+  var selCount=document.getElementById('inbox-seleccion-count');
+  if(selCount){ selCount.textContent=_inboxSeleccionados.size+' seleccionado'+(_inboxSeleccionados.size===1?'':'s'); }
   if(_inboxTelActivo) renderChat(_inboxTelActivo);
   else {
     var chatEl=document.getElementById('inbox-chat'); if(chatEl) chatEl.innerHTML='<div style="color:#aaa;font-size:13px;padding:24px;text-align:center;margin:auto">Selecciona una conversacion</div>';
