@@ -1489,6 +1489,7 @@ async function importarJSON(data){
 // ══════════════════════════════════════════════════════════════
 
 var _embudoDragId  = null;
+var _embudoEtapaDragId = null;
 var _etapaEditId   = null;
 var _prospEditId   = null;
 var _etapaColorSel = '#6b7280';
@@ -1540,7 +1541,8 @@ function renderEmbudo() {
       + 'ondragover="embudoDragOver(event)" '
       + 'ondrop="embudoDrop(event,\''+etapa.id+'\')" '
       + 'ondragleave="this.classList.remove(\'drag-over\')">'
-      + '<div class="embudo-col-head" style="border-top:3px solid '+etapa.color+'">'
+      + '<div class="embudo-col-head" draggable="true" style="border-top:3px solid '+etapa.color+';cursor:grab" '
+        + 'ondragstart="embudoEtapaDragStart(event,\''+etapa.id+'\')">'
         + '<div style="display:flex;align-items:center;gap:6px">'
           + '<span style="font-weight:600;font-size:13px">'+etapa.nombre+'</span>'
           + '<span style="background:#f0f0f0;border-radius:10px;padding:1px 8px;font-size:11px;color:#666">'+cards.length+'</span>'
@@ -1589,6 +1591,11 @@ window.embudoDragStart = function(e, id) {
   _embudoDragId = id;
   e.dataTransfer.effectAllowed = 'move';
 };
+window.embudoEtapaDragStart = function(e, etapaId) {
+  e.stopPropagation();
+  _embudoEtapaDragId = etapaId;
+  e.dataTransfer.effectAllowed = 'move';
+};
 window.embudoDragOver = function(e) {
   e.preventDefault();
   e.currentTarget.classList.add('drag-over');
@@ -1608,9 +1615,28 @@ async function reordenarEtapa(etapaId, idsEnOrden){
   }
 }
 
+async function reordenarEtapas(idsEnOrden){
+  for(var i=0;i<idsEnOrden.length;i++){
+    await fbUpd('embudo_etapas', idsEnOrden[i], { orden:i });
+  }
+}
+
 window.embudoDrop = async function(e, etapaId) {
   e.preventDefault();
   document.querySelectorAll('.embudo-col').forEach(function(c){ c.classList.remove('drag-over'); });
+
+  if (_embudoEtapaDragId) {
+    var dragEtapaId=_embudoEtapaDragId; _embudoEtapaDragId=null;
+    if (dragEtapaId===etapaId) return;
+    var etapasOrden=DB.embudo_etapas.slice().sort(function(a,b){return (a.orden||0)-(b.orden||0);}).map(function(x){return x.id;});
+    var idxDrag=etapasOrden.indexOf(dragEtapaId);
+    if(idxDrag>-1) etapasOrden.splice(idxDrag,1);
+    var idxTarget=etapasOrden.indexOf(etapaId);
+    etapasOrden.splice(idxTarget, 0, dragEtapaId);
+    await reordenarEtapas(etapasOrden);
+    return;
+  }
+
   if (!_embudoDragId) return;
   var dragId=_embudoDragId; _embudoDragId=null;
   var destino=ordenarCards(DB.prospectos.filter(function(p){ return p.etapaId===etapaId && p.id!==dragId; })).map(function(p){return p.id;});
